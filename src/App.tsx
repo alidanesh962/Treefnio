@@ -5,7 +5,8 @@ import LoginPage from './components/auth/LoginPage';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import InventoryManagement from './pages/InventoryManagement';
-import ReportingPage from './pages/ReportingPage'; // New import
+import ReportingPage from './pages/ReportingPage';
+import SalesModule from './pages/SalesModule'; // New import
 
 function App() {
   useEffect(() => {
@@ -21,7 +22,8 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/inventory" element={<InventoryManagement />} />
-        <Route path="/reports" element={<ReportingPage />} /> {/* New route */}
+        <Route path="/reports" element={<ReportingPage />} />
+        <Route path="/sales" element={<SalesModule />} /> {/* New route */}
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

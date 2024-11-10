@@ -245,7 +245,15 @@ export default function Dashboard() {
                 <Settings className="h-6 w-6 text-blue-500" />
                 <span className="text-blue-700 dark:text-blue-300 font-medium">تنظیمات</span>
               </button>
-
+              <button
+                onClick={() => navigate('/sales')}
+                className="flex items-center gap-3 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20
+                        hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors
+                        border border-yellow-200/50 dark:border-yellow-900/50"
+              >
+                <DollarSign className="h-6 w-6 text-yellow-500" />
+                <span className="text-yellow-700 dark:text-yellow-300 font-medium">ماژول فروش</span>
+              </button>
               <button
                 onClick={() => navigate('/inventory')}
                 className="flex items-center gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-900/20
