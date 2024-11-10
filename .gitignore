@@ -65,3 +65,9 @@ Thumbs.db
 *.swo
 .history/
 .temp/
+
+node_modules
+build
+.env
+.env.local
+.DS_Store
