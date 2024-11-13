@@ -6,7 +6,8 @@ import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import InventoryManagement from './pages/InventoryManagement';
 import ReportingPage from './pages/ReportingPage';
-import SalesModule from './pages/SalesModule'; // New import
+import SalesModule from './pages/SalesModule';
+import ProductionModule from './pages/ProductionModule'; // New import
 
 function App() {
   useEffect(() => {
@@ -23,7 +24,8 @@ function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/inventory" element={<InventoryManagement />} />
         <Route path="/reports" element={<ReportingPage />} />
-        <Route path="/sales" element={<SalesModule />} /> {/* New route */}
+        <Route path="/sales" element={<SalesModule />} />
+        <Route path="/production" element={<ProductionModule />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
