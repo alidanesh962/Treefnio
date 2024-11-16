@@ -1,7 +1,8 @@
 // src/components/inventory/Recipes.tsx
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search } from 'lucide-react';
-import { db, Item } from '../../database';
+import { db } from '../../database';
+import type { Item } from '../../database/types';
 import { Recipe } from '../../types/recipe';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import RecipeEditDialog from './RecipeEditDialog';

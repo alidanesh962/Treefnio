@@ -1,27 +1,48 @@
 // src/pages/ProductionModule.tsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, Menu, X, Package, ChevronLeft, 
-  Settings, Factory, Plus
+  Plus, List
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
+import ProductDefinitionForm from '../components/production/ProductDefinitionForm';
+import ProductsList from '../components/production/ProductsList';
+import RecipeDefinitionForm from '../components/production/RecipeDefinitionForm';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
-import { CurrentUser } from '../types';
+import { db } from '../database';
+import { CurrentUser, ProductDefinition } from '../types';
 
 export default function ProductionModule() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(getCurrentUser());
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const [activeMenu, setActiveMenu] = useState('define-product');
+  const [activeMenu, setActiveMenu] = useState('products-list');
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<ProductDefinition | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!currentUser) {
       navigate('/login');
       return;
+    }
+
+    // Initialize default departments if none exist
+    const saleDepts = db.getDepartmentsByType('sale');
+    const prodDepts = db.getDepartmentsByType('production');
+    
+    if (saleDepts.length === 0) {
+      console.log('Initializing default sale department');
+      db.addDepartment('فروش عمومی', 'sale');
+    }
+    
+    if (prodDepts.length === 0) {
+      console.log('Initializing default production department');
+      db.addDepartment('تولید عمومی', 'production');
     }
   }, [currentUser, navigate]);
 
@@ -41,6 +62,46 @@ export default function ProductionModule() {
 
   const toggleSidebar = () => {
     setSidebarOpen(!isSidebarOpen);
+  };
+
+  const handleProductSelected = (product: ProductDefinition) => {
+    console.log('Product selected:', product);
+    setSelectedProduct(product);
+    setActiveMenu('recipe-definition');
+  };
+
+  const getMenuContent = () => {
+    switch (activeMenu) {
+      case 'product-definition':
+        return (
+          <ProductDefinitionForm 
+            onBack={() => setActiveMenu('products-list')}
+            onSuccess={() => {
+              setRefreshTrigger(prev => prev + 1);
+              setActiveMenu('products-list');
+            }}
+          />
+        );
+      case 'products-list':
+        return (
+          <ProductsList 
+            onProductSelect={handleProductSelected}
+            key={refreshTrigger}
+          />
+        );
+      case 'recipe-definition':
+        return selectedProduct ? (
+          <RecipeDefinitionForm 
+            product={selectedProduct}
+            onBack={() => {
+              setSelectedProduct(null);
+              setActiveMenu('products-list');
+            }}
+          />
+        ) : null;
+      default:
+        return null;
+    }
   };
 
   if (!currentUser) {
@@ -68,18 +129,34 @@ export default function ProductionModule() {
         
         <nav className="mt-4">
           <button
-            onClick={() => setActiveMenu('define-product')}
+            onClick={() => {
+              setSelectedProduct(null);
+              setActiveMenu('products-list');
+            }}
             className={`flex items-center w-full px-4 py-2 text-right
-                      ${activeMenu === 'define-product' 
+                      ${activeMenu === 'products-list' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+          >
+            <List className="h-5 w-5 ml-2" />
+            لیست محصولات
+            <ChevronLeft className="h-4 w-4 mr-auto" />
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedProduct(null);
+              setActiveMenu('product-definition');
+            }}
+            className={`flex items-center w-full px-4 py-2 text-right
+                      ${activeMenu === 'product-definition' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
             <Plus className="h-5 w-5 ml-2" />
-            تعریف محصول
+            تعریف محصول جدید
             <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
-
-          {/* Additional menu items can be added here */}
         </nav>
       </div>
 
@@ -115,14 +192,7 @@ export default function ProductionModule() {
 
         {/* Main Content */}
         <main className="p-8">
-          {activeMenu === 'define-product' && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-                تعریف محصول
-              </h1>
-              {/* Content for تعریف محصول will go here */}
-            </div>
-          )}
+          {getMenuContent()}
         </main>
       </div>
 

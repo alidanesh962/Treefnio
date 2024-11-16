@@ -1,7 +1,7 @@
 // src/components/inventory/BulkEditDialog.tsx
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { Item } from '../../database';
+import { Item } from '../../database/types';
 
 interface BulkEditDialogProps {
   isOpen: boolean;

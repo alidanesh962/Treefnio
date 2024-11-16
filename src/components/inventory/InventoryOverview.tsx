@@ -1,14 +1,16 @@
-// src/components/inventory/InventoryOverview.tsx
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X, Save } from 'lucide-react';
-import { db, Item } from '../../database';
+import { db } from '../../database';
+import type { Item } from '../../database/types';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
+import NewItemDialog from './NewItemDialog';
 
 export default function InventoryOverview() {
   const [products, setProducts] = useState<Item[]>([]);
   const [materials, setMaterials] = useState<Item[]>([]);
   const [editingProduct, setEditingProduct] = useState<Item | null>(null);
   const [editingMaterial, setEditingMaterial] = useState<Item | null>(null);
+  const [showNewItemDialog, setShowNewItemDialog] = useState<'product' | 'material' | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     id: string;
@@ -16,37 +18,32 @@ export default function InventoryOverview() {
     type: 'product' | 'material';
   }>({ isOpen: false, id: '', name: '', type: 'product' });
 
+  const [departments, setDepartments] = useState<string[]>([]);
+
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = () => {
+    // Load products and materials
     setProducts(db.getProducts());
     setMaterials(db.getMaterials());
+
+    // Get unique departments from both products and materials
+    const allItems = [...db.getProducts(), ...db.getMaterials()];
+    const uniqueDepartments = Array.from(new Set(allItems.map(item => item.department)));
+    setDepartments(uniqueDepartments);
   };
 
-  const handleAddProduct = (product: Omit<Item, 'id'>) => {
-    const newProduct = db.addProduct(product);
-    setProducts([...products, newProduct]);
-  };
-
-  const handleAddMaterial = (material: Omit<Item, 'id'>) => {
-    const newMaterial = db.addMaterial(material);
-    setMaterials([...materials, newMaterial]);
-  };
-
-  const handleUpdateProduct = (product: Item) => {
-    if (db.updateProduct(product)) {
-      setProducts(products.map(p => p.id === product.id ? product : p));
-      setEditingProduct(null);
+  const handleAddItem = (item: { name: string; code: string; department: string; price: number }) => {
+    if (showNewItemDialog === 'product') {
+      const newProduct = db.addProduct({ ...item, type: 'product' });
+      setProducts([...products, newProduct]);
+    } else {
+      const newMaterial = db.addMaterial({ ...item, type: 'material' });
+      setMaterials([...materials, newMaterial]);
     }
-  };
-
-  const handleUpdateMaterial = (material: Item) => {
-    if (db.updateMaterial(material)) {
-      setMaterials(materials.map(m => m.id === material.id ? material : m));
-      setEditingMaterial(null);
-    }
+    setShowNewItemDialog(null);
   };
 
   const handleDelete = () => {
@@ -66,7 +63,17 @@ export default function InventoryOverview() {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
       {/* Products Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">کالا</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">کالا</h2>
+          <button
+            onClick={() => setShowNewItemDialog('product')}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white 
+                     rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            افزودن کالا
+          </button>
+        </div>
         
         {/* Products List */}
         <div className="space-y-4">
@@ -84,12 +91,6 @@ export default function InventoryOverview() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditingProduct(product)}
-                    className="p-1.5 text-blue-500 hover:text-blue-600 transition-colors"
-                  >
-                    <Edit2 className="h-5 w-5" />
-                  </button>
                   <button
                     onClick={() => setDeleteConfirm({
                       isOpen: true,
@@ -110,7 +111,17 @@ export default function InventoryOverview() {
 
       {/* Materials Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">متریال</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">متریال</h2>
+          <button
+            onClick={() => setShowNewItemDialog('material')}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white 
+                     rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            افزودن متریال
+          </button>
+        </div>
         
         {/* Materials List */}
         <div className="space-y-4">
@@ -129,12 +140,6 @@ export default function InventoryOverview() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setEditingMaterial(material)}
-                    className="p-1.5 text-blue-500 hover:text-blue-600 transition-colors"
-                  >
-                    <Edit2 className="h-5 w-5" />
-                  </button>
-                  <button
                     onClick={() => setDeleteConfirm({
                       isOpen: true,
                       id: material.id,
@@ -151,6 +156,17 @@ export default function InventoryOverview() {
           ))}
         </div>
       </div>
+
+      {/* New Item Dialog */}
+      {showNewItemDialog && (
+        <NewItemDialog
+          isOpen={true}
+          type={showNewItemDialog}
+          onClose={() => setShowNewItemDialog(null)}
+          onConfirm={handleAddItem}
+          departments={departments}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog

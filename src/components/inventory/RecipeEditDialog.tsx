@@ -1,7 +1,7 @@
 // src/components/inventory/RecipeEditDialog.tsx
 import React, { useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
-import { Item } from '../../database';
+import { Item } from '../../database/types';
 import { Recipe } from '../../types/recipe';
 
 interface RecipeEditDialogProps {

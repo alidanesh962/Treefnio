@@ -245,7 +245,7 @@ export default function Dashboard() {
                 <Settings className="h-6 w-6 text-blue-500" />
                 <span className="text-blue-700 dark:text-blue-300 font-medium">تنظیمات</span>
               </button>
-              // In the quick actions section of Dashboard.tsx, add this button:
+              
 
               <button
                 onClick={() => navigate('/production')}
@@ -256,7 +256,7 @@ export default function Dashboard() {
                 <Package className="h-6 w-6 text-indigo-500" />
                 <span className="text-indigo-700 dark:text-indigo-300 font-medium">ماژول تولید</span>
               </button>
-              
+
               <button
                 onClick={() => navigate('/sales')}
                 className="flex items-center gap-3 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20
