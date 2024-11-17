@@ -1,12 +1,12 @@
 // src/components/inventory/EditingMP.tsx
 import React, { useState, useEffect } from 'react';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, FileSpreadsheet } from 'lucide-react';
 import { Item } from '../../types';
 import { db } from '../../database';
 import EditingTable from './EditingTable';
+import MaterialImport from './MaterialImport'; // Make sure path is correct
 import BulkEditDialog from './BulkEditDialog';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
-
 interface FilterState {
   search: string;
   type: 'all' | 'products' | 'materials';
@@ -23,6 +23,7 @@ export default function EditingMP() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   useEffect(() => {
     loadAllItems();
@@ -72,7 +73,7 @@ export default function EditingMP() {
 
   useEffect(() => {
     handleFilter();
-  }, [filters]); // Re-filter when filters change
+  }, [filters]);
 
   const handleBulkEdit = (changes: Partial<Item>) => {
     selectedItems.forEach(id => {
@@ -115,6 +116,14 @@ export default function EditingMP() {
             ویرایش کالا و متریال
           </h2>
           <div className="flex gap-2">
+            <button
+              onClick={() => setShowImportDialog(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white 
+                       rounded-lg hover:bg-green-600 transition-colors"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              ورود گروهی
+            </button>
             {selectedItems.length > 0 && (
               <>
                 <button
@@ -192,6 +201,17 @@ export default function EditingMP() {
         onConfirm={handleBulkDelete}
         onCancel={() => setShowDeleteConfirm(false)}
       />
+
+      {/* Material Import Dialog */}
+      {showImportDialog && (
+        <MaterialImport
+          onClose={() => setShowImportDialog(false)}
+          onSuccess={() => {
+            loadAllItems();
+            setShowImportDialog(false);
+          }}
+        />
+      )}
     </div>
   );
 }

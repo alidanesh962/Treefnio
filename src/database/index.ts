@@ -20,7 +20,6 @@ const PRODUCT_DEFINITIONS_KEY = 'restaurant_product_definitions';
 const PRODUCT_RECIPES_KEY = 'restaurant_product_recipes';
 const MATERIAL_UNITS_KEY = 'restaurant_material_units';
 const PRODUCTION_BATCHES_KEY = 'restaurant_production_batches';
-
 class Database {
   // Products Operations
   getProducts(): Item[] {
@@ -90,6 +89,66 @@ class Database {
     materials.push(newMaterial);
     this.saveMaterials(materials);
     return newMaterial;
+  }
+
+  // New method for bulk import
+  bulkAddMaterials(materials: Array<Omit<Item, 'id' | 'type'>>): Item[] {
+    const existingMaterials = this.getMaterials();
+    const timestamp = Date.now();
+    
+    const newMaterials: Item[] = materials.map((material, index) => ({
+      ...material,
+      id: `${timestamp}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'material' as const
+    }));
+
+    const updatedMaterials = [...existingMaterials, ...newMaterials];
+    this.saveMaterials(updatedMaterials);
+    return newMaterials;
+  }
+
+  // New method to validate materials before import
+  validateMaterialImport(materials: Array<Omit<Item, 'id' | 'type'>>): {
+    valid: boolean;
+    errors: { [key: string]: string[] };
+  } {
+    const errors: { [key: string]: string[] } = {};
+    const existingMaterials = this.getMaterials();
+
+    materials.forEach((material, index) => {
+      const materialErrors: string[] = [];
+
+      // Check required fields
+      if (!material.name?.trim()) {
+        materialErrors.push('نام الزامی است');
+      }
+      if (!material.code?.trim()) {
+        materialErrors.push('کد الزامی است');
+      }
+      if (!material.department?.trim()) {
+        materialErrors.push('بخش الزامی است');
+      }
+      if (!material.price || material.price <= 0) {
+        materialErrors.push('قیمت باید بزرگتر از صفر باشد');
+      }
+
+      // Check for duplicates
+      if (existingMaterials.some(m => m.code === material.code)) {
+        materialErrors.push('این کد قبلاً ثبت شده است');
+      }
+      if (existingMaterials.some(m => m.name === material.name)) {
+        materialErrors.push('این نام قبلاً ثبت شده است');
+      }
+
+      if (materialErrors.length > 0) {
+        errors[index] = materialErrors;
+      }
+    });
+
+    return {
+      valid: Object.keys(errors).length === 0,
+      errors
+    };
   }
 
   updateMaterial(material: Item): boolean {
@@ -474,7 +533,6 @@ class Database {
     localStorage.setItem(PRODUCTION_BATCHES_KEY, JSON.stringify(batches));
   }
 }
-
 // Create and export the database instance
 const db = new Database();
 db.initializeDefaultUnits();
