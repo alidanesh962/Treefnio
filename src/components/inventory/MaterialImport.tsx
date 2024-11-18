@@ -231,7 +231,7 @@ const PERSIAN_CHAR_REPLACEMENTS: { [key: string]: string } = {
 
               resolve({ headers, rows });
             },
-            
+
           });
         } catch (error) {
           console.error('Error processing CSV file:', error);
