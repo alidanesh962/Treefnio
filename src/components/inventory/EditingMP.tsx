@@ -1,18 +1,18 @@
 // src/components/inventory/EditingMP.tsx
 import React, { useState, useEffect } from 'react';
 import { Edit2, Trash2, FileSpreadsheet } from 'lucide-react';
-import { Item } from '../../types';
+import { Item, MaterialUnit } from '../../types';
 import { db } from '../../database';
 import EditingTable from './EditingTable';
-import MaterialImport from './MaterialImport'; // Make sure path is correct
+import MaterialImport from './MaterialImport';
 import BulkEditDialog from './BulkEditDialog';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
+
 interface FilterState {
   search: string;
   type: 'all' | 'products' | 'materials';
   department: string;
 }
-
 export default function EditingMP() {
   const [items, setItems] = useState<Item[]>([]);
   const [filters, setFilters] = useState<FilterState>({
@@ -24,9 +24,11 @@ export default function EditingMP() {
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [units, setUnits] = useState<MaterialUnit[]>([]);
 
   useEffect(() => {
     loadAllItems();
+    loadUnits();
   }, []);
 
   const loadAllItems = () => {
@@ -35,8 +37,16 @@ export default function EditingMP() {
     setItems([...products, ...materials]);
   };
 
+  const loadUnits = () => {
+    setUnits(db.getMaterialUnits());
+  };
   const handleSort = (key: keyof Item) => {
     const sortedItems = [...items].sort((a, b) => {
+      if (key === 'unit') {
+        const unitA = units.find(u => u.id === a.unit)?.name || '';
+        const unitB = units.find(u => u.id === b.unit)?.name || '';
+        return unitA.localeCompare(unitB);
+      }
       const aValue = String(a[key] ?? '');
       const bValue = String(b[key] ?? '');
       return aValue.localeCompare(bValue);
@@ -62,10 +72,13 @@ export default function EditingMP() {
     }
 
     if (filters.search) {
-      filteredItems = filteredItems.filter(item => 
-        item.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-        item.code.toLowerCase().includes(filters.search.toLowerCase())
-      );
+      const searchTerm = filters.search.toLowerCase();
+      filteredItems = filteredItems.filter(item => {
+        const unitName = units.find(u => u.id === item.unit)?.name.toLowerCase() || '';
+        return item.name.toLowerCase().includes(searchTerm) ||
+               item.code.toLowerCase().includes(searchTerm) ||
+               unitName.includes(searchTerm);
+      });
     }
 
     setItems(filteredItems);
@@ -74,7 +87,6 @@ export default function EditingMP() {
   useEffect(() => {
     handleFilter();
   }, [filters]);
-
   const handleBulkEdit = (changes: Partial<Item>) => {
     selectedItems.forEach(id => {
       const item = items.find(i => i.id === id);
@@ -106,7 +118,6 @@ export default function EditingMP() {
     setShowDeleteConfirm(false);
     setSelectedItems([]);
   };
-
   return (
     <div className="space-y-6">
       {/* Filters Section */}
@@ -185,6 +196,7 @@ export default function EditingMP() {
         selectedItems={selectedItems}
         onSelectItems={setSelectedItems}
         onSort={handleSort}
+        units={units}
       />
 
       {/* Dialogs */}
@@ -193,6 +205,7 @@ export default function EditingMP() {
         onClose={() => setShowBulkEdit(false)}
         onConfirm={handleBulkEdit}
         selectedCount={selectedItems.length}
+        units={units}
       />
 
       <DeleteConfirmDialog

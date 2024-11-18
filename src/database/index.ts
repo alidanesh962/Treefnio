@@ -69,7 +69,12 @@ class Database {
   // Materials Operations
   getMaterials(): Item[] {
     const stored = localStorage.getItem(MATERIALS_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const materials = stored ? JSON.parse(stored) : [];
+    // Add default unit if missing
+    return materials.map((material: { unit: any; }) => ({
+      ...material,
+      unit: material.unit || this.getMaterialUnits()[0]?.id || ''
+    }));
   }
 
   getMaterial(id: string): Item | undefined {
@@ -84,22 +89,24 @@ class Database {
     const materials = this.getMaterials();
     const newMaterial: Item = {
       ...material,
-      id: Date.now().toString()
+      id: Date.now().toString(),
+      unit: material.unit || this.getMaterialUnits()[0]?.id || ''
     };
     materials.push(newMaterial);
     this.saveMaterials(materials);
     return newMaterial;
   }
 
-  // New method for bulk import
   bulkAddMaterials(materials: Array<Omit<Item, 'id' | 'type'>>): Item[] {
     const existingMaterials = this.getMaterials();
     const timestamp = Date.now();
+    const defaultUnit = this.getMaterialUnits()[0]?.id || '';
     
     const newMaterials: Item[] = materials.map((material, index) => ({
       ...material,
       id: `${timestamp}_${index}_${Math.random().toString(36).substr(2, 9)}`,
-      type: 'material' as const
+      type: 'material' as const,
+      unit: material.unit || defaultUnit
     }));
 
     const updatedMaterials = [...existingMaterials, ...newMaterials];
@@ -107,13 +114,13 @@ class Database {
     return newMaterials;
   }
 
-  // New method to validate materials before import
   validateMaterialImport(materials: Array<Omit<Item, 'id' | 'type'>>): {
     valid: boolean;
     errors: { [key: string]: string[] };
   } {
     const errors: { [key: string]: string[] } = {};
     const existingMaterials = this.getMaterials();
+    const availableUnits = this.getMaterialUnits();
 
     materials.forEach((material, index) => {
       const materialErrors: string[] = [];
@@ -131,13 +138,16 @@ class Database {
       if (!material.price || material.price <= 0) {
         materialErrors.push('قیمت باید بزرگتر از صفر باشد');
       }
+      if (material.unit && !availableUnits.some(u => u.id === material.unit)) {
+        materialErrors.push('واحد اندازه‌گیری نامعتبر است');
+      }
 
       // Check for duplicates
-      if (existingMaterials.some(m => m.code === material.code)) {
-        materialErrors.push('این کد قبلاً ثبت شده است');
-      }
-      if (existingMaterials.some(m => m.name === material.name)) {
-        materialErrors.push('این نام قبلاً ثبت شده است');
+      if (existingMaterials.some(m => 
+        m.code.toLowerCase() === material.code.toLowerCase() ||
+        m.name.toLowerCase() === material.name.toLowerCase()
+      )) {
+        materialErrors.push('این کد یا نام قبلاً ثبت شده است');
       }
 
       if (materialErrors.length > 0) {
@@ -155,7 +165,10 @@ class Database {
     const materials = this.getMaterials();
     const index = materials.findIndex(m => m.id === material.id);
     if (index !== -1) {
-      materials[index] = material;
+      materials[index] = {
+        ...material,
+        unit: material.unit || this.getMaterialUnits()[0]?.id || ''
+      };
       this.saveMaterials(materials);
       return true;
     }
@@ -175,7 +188,9 @@ class Database {
   isMaterialDuplicate(code: string, name: string, excludeId?: string): boolean {
     const materials = this.getMaterials();
     return materials.some(m => 
-      (m.code === code || m.name === name) && m.id !== excludeId
+      (m.code.toLowerCase() === code.toLowerCase() || 
+       m.name.toLowerCase() === name.toLowerCase()) && 
+      m.id !== excludeId
     );
   }
   // Recipe Operations
@@ -220,7 +235,6 @@ class Database {
     }
     return false;
   }
-
   // Product Recipe Operations
   getProductRecipes(productId?: string): ProductRecipe[] {
     const stored = localStorage.getItem(PRODUCT_RECIPES_KEY);
@@ -342,8 +356,7 @@ class Database {
       product.saleDepartment &&
       product.productionSegment
     );
-  }
-  // Department Operations
+  }// Department Operations
   getDepartments(): Department[] {
     const stored = localStorage.getItem(DEPARTMENTS_KEY);
     return stored ? JSON.parse(stored) : [];
@@ -475,6 +488,53 @@ class Database {
       });
     }
   }
+  // Production Batches Operations
+  getProductionBatches(): ProductionBatch[] {
+    const stored = localStorage.getItem(PRODUCTION_BATCHES_KEY);
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  saveProductionBatches(batches: ProductionBatch[]): void {
+    localStorage.setItem(PRODUCTION_BATCHES_KEY, JSON.stringify(batches));
+  }
+
+  addProductionBatch(batch: Omit<ProductionBatch, 'id' | 'createdAt' | 'updatedAt'>): ProductionBatch {
+    const batches = this.getProductionBatches();
+    const now = Date.now();
+    const newBatch: ProductionBatch = {
+      ...batch,
+      id: now.toString(),
+      createdAt: now,
+      updatedAt: now
+    };
+    batches.push(newBatch);
+    this.saveProductionBatches(batches);
+    return newBatch;
+  }
+
+  updateProductionBatch(batch: ProductionBatch): boolean {
+    const batches = this.getProductionBatches();
+    const index = batches.findIndex(b => b.id === batch.id);
+    if (index !== -1) {
+      batches[index] = {
+        ...batch,
+        updatedAt: Date.now()
+      };
+      this.saveProductionBatches(batches);
+      return true;
+    }
+    return false;
+  }
+
+  deleteProductionBatch(id: string): boolean {
+    const batches = this.getProductionBatches();
+    const filteredBatches = batches.filter(b => b.id !== id);
+    if (filteredBatches.length < batches.length) {
+      this.saveProductionBatches(filteredBatches);
+      return true;
+    }
+    return false;
+  }
   // Validation Operations
   validateAll(): { 
     isValid: boolean, 
@@ -517,22 +577,20 @@ class Database {
       });
     });
 
+    // Validate Materials
+    this.getMaterials().forEach((material: Item) => {
+      if (material.unit && !this.getMaterialUnit(material.unit)) {
+        errors.materials.push(`Invalid unit reference for material: ${material.name}`);
+      }
+    });
+
     return {
       isValid: Object.values(errors).every(arr => arr.length === 0),
       errors
     };
   }
-
-  // Production Batches Operations
-  getProductionBatches(): ProductionBatch[] {
-    const stored = localStorage.getItem(PRODUCTION_BATCHES_KEY);
-    return stored ? JSON.parse(stored) : [];
-  }
-
-  saveProductionBatches(batches: ProductionBatch[]): void {
-    localStorage.setItem(PRODUCTION_BATCHES_KEY, JSON.stringify(batches));
-  }
 }
+
 // Create and export the database instance
 const db = new Database();
 db.initializeDefaultUnits();
@@ -549,4 +607,4 @@ export type {
   MaterialUnit,
   RecipeMaterial,
   ProductionBatch
-} from '../types';
+};
