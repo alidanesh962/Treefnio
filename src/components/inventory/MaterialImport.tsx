@@ -231,14 +231,7 @@ const PERSIAN_CHAR_REPLACEMENTS: { [key: string]: string } = {
 
               resolve({ headers, rows });
             },
-            error: (error: Papa.ParseError) => {
-              console.error('Error parsing CSV:', error);
-              reject(new Error('خطا در پردازش فایل CSV'));
-            },
-            skipEmptyLines: true,
-            delimiter: ',',
-            header: false,
-            delimitersToGuess: [',', '\t', '|', ';']
+            
           });
         } catch (error) {
           console.error('Error processing CSV file:', error);
