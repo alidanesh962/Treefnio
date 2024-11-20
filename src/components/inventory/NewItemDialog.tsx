@@ -237,7 +237,7 @@ export default function NewItemDialog({
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
-                بخش
+                گروه
               </label>
               <select
                 value={formData.department}
@@ -245,11 +245,11 @@ export default function NewItemDialog({
                 className="w-full px-3 py-2 rounded-lg border border-gray-600 
                          bg-gray-700 text-white"
               >
-                <option value="">انتخاب بخش...</option>
+                <option value="">انتخاب گروه...</option>
                 {localDepartments.map(dept => (
                   <option key={dept} value={dept}>{dept}</option>
                 ))}
-                <option value="new">+ افزودن بخش جدید</option>
+                <option value="new">+ افزودن گروه جدید</option>
               </select>
               {errors.department && (
                 <p className="mt-1 text-sm text-red-500">{errors.department}</p>

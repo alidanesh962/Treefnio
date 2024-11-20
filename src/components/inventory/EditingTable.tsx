@@ -1,21 +1,22 @@
 // src/components/inventory/EditingTable.tsx
 import React from 'react';
 import { ArrowUpDown } from 'lucide-react';
-import { Item } from '../../types';
+import { Item, MaterialUnit } from '../../types';
 
 interface EditingTableProps {
-  items: Item[];  // Now using the updated Item type
+  items: Item[];
   selectedItems: string[];
   onSelectItems: (ids: string[]) => void;
   onSort: (key: keyof Item) => void;
+  units: MaterialUnit[];
 }
-
 
 export default function EditingTable({
   items,
   selectedItems,
   onSelectItems,
-  onSort
+  onSort,
+  units
 }: EditingTableProps) {
   const handleSelectAll = (checked: boolean) => {
     onSelectItems(checked ? items.map(item => item.id) : []);
@@ -29,6 +30,12 @@ export default function EditingTable({
     }
   };
 
+  const getUnitDisplay = (unitId?: string): string => {
+    if (!unitId) return '-';
+    const unit = units.find(u => u.id === unitId);
+    return unit ? `${unit.name} (${unit.symbol})` : '-';
+  };
+
   const renderSortButton = (label: string, key: keyof Item) => (
     <button
       onClick={() => onSort(key)}
@@ -39,7 +46,6 @@ export default function EditingTable({
       <ArrowUpDown className="h-4 w-4" />
     </button>
   );
-
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -57,6 +63,7 @@ export default function EditingTable({
               <th className="px-6 py-3 text-right">{renderSortButton('نام', 'name')}</th>
               <th className="px-6 py-3 text-right">{renderSortButton('کد', 'code')}</th>
               <th className="px-6 py-3 text-right">{renderSortButton('بخش', 'department')}</th>
+              <th className="px-6 py-3 text-right">{renderSortButton('واحد', 'unit')}</th>
               <th className="px-6 py-3 text-right">{renderSortButton('قیمت', 'price')}</th>
               <th className="px-6 py-3 text-right">نوع</th>
             </tr>
@@ -75,6 +82,7 @@ export default function EditingTable({
                 <td className="px-6 py-4">{item.name}</td>
                 <td className="px-6 py-4">{item.code}</td>
                 <td className="px-6 py-4">{item.department}</td>
+                <td className="px-6 py-4">{getUnitDisplay(item.unit)}</td>
                 <td className="px-6 py-4">{item.price.toLocaleString()} ریال</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded-full text-sm ${
@@ -92,4 +100,7 @@ export default function EditingTable({
       </div>
     </div>
   );
-}
+} // End of EditingTable component
+
+// Type exports if needed
+export type { EditingTableProps };
