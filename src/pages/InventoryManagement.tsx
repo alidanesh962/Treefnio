@@ -89,7 +89,7 @@ export default function InventoryManagement() {
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
             <Edit3 className="h-5 w-5 ml-2" />
-            ویرایش کالا و متریال
+            ویرایش متریال
             <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
 

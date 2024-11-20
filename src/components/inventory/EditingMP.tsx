@@ -1,6 +1,5 @@
-// src/components/inventory/EditingMP.tsx
 import React, { useState, useEffect } from 'react';
-import { Edit2, Trash2, FileSpreadsheet } from 'lucide-react';
+import { Edit2, Trash2, FileSpreadsheet, Search, Filter, ArrowUpDown, X } from 'lucide-react';
 import { Item, MaterialUnit } from '../../types';
 import { db } from '../../database';
 import EditingTable from './EditingTable';
@@ -10,121 +9,225 @@ import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 
 interface FilterState {
   search: string;
-  type: 'all' | 'products' | 'materials';
+  name: string;
+  code: string;
   department: string;
+  unit: string;
+  minPrice: string;
+  maxPrice: string;
 }
+
+interface SortState {
+  field: keyof Item | undefined;
+  direction: 'asc' | 'desc';
+}
+
+const initialFilterState: FilterState = {
+  search: '',
+  name: '',
+  code: '',
+  department: '',
+  unit: '',
+  minPrice: '',
+  maxPrice: ''
+};
 export default function EditingMP() {
+  // State definitions
   const [items, setItems] = useState<Item[]>([]);
-  const [filters, setFilters] = useState<FilterState>({
-    search: '',
-    type: 'all',
-    department: ''
-  });
+  const [filters, setFilters] = useState<FilterState>(initialFilterState);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [units, setUnits] = useState<MaterialUnit[]>([]);
+  const [sort, setSort] = useState<SortState>({ field: undefined, direction: 'asc' });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [filteredItems, setFilteredItems] = useState<Item[]>([]);
 
+  // Effects
   useEffect(() => {
     loadAllItems();
     loadUnits();
   }, []);
 
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [items, filters, sort]);
+
+  // Load Functions
   const loadAllItems = () => {
-    const products = db.getProducts().map(item => ({ ...item, type: 'product' as const }));
     const materials = db.getMaterials().map(item => ({ ...item, type: 'material' as const }));
-    setItems([...products, ...materials]);
+    setItems(materials);
   };
 
   const loadUnits = () => {
     setUnits(db.getMaterialUnits());
   };
-  const handleSort = (key: keyof Item) => {
-    const sortedItems = [...items].sort((a, b) => {
-      if (key === 'unit') {
-        const unitA = units.find(u => u.id === a.unit)?.name || '';
-        const unitB = units.find(u => u.id === b.unit)?.name || '';
-        return unitA.localeCompare(unitB);
-      }
-      const aValue = String(a[key] ?? '');
-      const bValue = String(b[key] ?? '');
-      return aValue.localeCompare(bValue);
-    });
-    setItems(sortedItems);
+
+  // Utility Functions
+  const normalizeString = (str: string | number): string => {
+    return String(str).toLowerCase().trim();
   };
 
-  const handleFilter = () => {
-    const products = db.getProducts().map(item => ({ ...item, type: 'product' as const }));
-    const materials = db.getMaterials().map(item => ({ ...item, type: 'material' as const }));
-    let filteredItems: Item[] = [...products, ...materials];
+  const isNumeric = (str: string): boolean => {
+    if (typeof str !== 'string') return false;
+    return !isNaN(parseFloat(str)) && isFinite(Number(str));
+  };
 
-    if (filters.type !== 'all') {
-      filteredItems = filteredItems.filter(item => 
-        filters.type === 'products' ? item.type === 'product' : item.type === 'material'
-      );
-    }
+  const getUnitName = (unitId: string): string => {
+    return units.find(u => u.id === unitId)?.name || '';
+  };
+  // Sorting and Filtering Functions
+  const applyFiltersAndSort = () => {
+    let result = [...items];
 
-    if (filters.department) {
-      filteredItems = filteredItems.filter(item => 
-        item.department.toLowerCase().includes(filters.department.toLowerCase())
-      );
-    }
+    // Apply filters
+    result = result.filter(item => {
+      const matchesSearch = !filters.search || 
+        Object.values(item).some(value => 
+          String(value).toLowerCase().includes(filters.search.toLowerCase())
+        );
 
-    if (filters.search) {
-      const searchTerm = filters.search.toLowerCase();
-      filteredItems = filteredItems.filter(item => {
-        const unitName = units.find(u => u.id === item.unit)?.name.toLowerCase() || '';
-        return item.name.toLowerCase().includes(searchTerm) ||
-               item.code.toLowerCase().includes(searchTerm) ||
-               unitName.includes(searchTerm);
+      const matchesName = !filters.name || 
+        item.name.toLowerCase().includes(filters.name.toLowerCase());
+
+      const matchesCode = !filters.code || 
+        item.code.toLowerCase().includes(filters.code.toLowerCase());
+
+      const matchesDepartment = !filters.department || 
+        item.department.toLowerCase().includes(filters.department.toLowerCase());
+
+      const matchesUnit = !filters.unit || 
+        getUnitName(item.unit || '').toLowerCase().includes(filters.unit.toLowerCase());
+
+      const matchesMinPrice = !filters.minPrice || 
+        item.price >= parseFloat(filters.minPrice);
+
+      const matchesMaxPrice = !filters.maxPrice || 
+        item.price <= parseFloat(filters.maxPrice);
+
+      return matchesSearch && matchesName && matchesCode && 
+             matchesDepartment && matchesUnit && 
+             matchesMinPrice && matchesMaxPrice;
+    });
+
+    // Apply sorting - Fixed TypeScript error here
+    if (sort.field) {
+      result.sort((a, b) => {
+        let valueA: string | number;
+        let valueB: string | number;
+
+        // Type guard to ensure sort.field exists
+        if (!sort.field) {
+          return 0;
+        }
+
+        // Handle special cases for different fields
+        if (sort.field === 'unit') {
+          valueA = getUnitName(sort.field in a && a[sort.field] ? String(a[sort.field]) : '');
+          valueB = getUnitName(sort.field in b && b[sort.field] ? String(b[sort.field]) : '');
+        } else if (sort.field === 'price') {
+          valueA = sort.field in a ? Number(a[sort.field]) || 0 : 0;
+          valueB = sort.field in b ? Number(b[sort.field]) || 0 : 0;
+        } else {
+          valueA = sort.field in a ? String(a[sort.field]) : '';
+          valueB = sort.field in b ? String(b[sort.field]) : '';
+        }
+
+        // Normalize strings for comparison
+        if (typeof valueA === 'string' && typeof valueB === 'string') {
+          valueA = normalizeString(valueA);
+          valueB = normalizeString(valueB);
+        }
+
+        if (valueA < valueB) return sort.direction === 'asc' ? -1 : 1;
+        if (valueA > valueB) return sort.direction === 'asc' ? 1 : -1;
+        return 0;
       });
     }
 
-    setItems(filteredItems);
+    setFilteredItems(result);
   };
 
-  useEffect(() => {
-    handleFilter();
-  }, [filters]);
+  const handleSort = (field: keyof Item) => {
+    setSort(prevSort => ({
+      field,
+      direction: 
+        prevSort.field === field && prevSort.direction === 'asc' 
+          ? 'desc' 
+          : 'asc'
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters(initialFilterState);
+    setSort({ field: undefined, direction: 'asc' });
+  };
+  // Event Handlers for Bulk Operations
   const handleBulkEdit = (changes: Partial<Item>) => {
     selectedItems.forEach(id => {
       const item = items.find(i => i.id === id);
       if (item) {
         const updatedItem = { ...item, ...changes };
-        if (item.type === 'product') {
-          db.updateProduct(updatedItem);
-        } else {
-          db.updateMaterial(updatedItem);
-        }
+        db.updateMaterial(updatedItem);
       }
     });
     loadAllItems();
     setShowBulkEdit(false);
+    setSelectedItems([]);
   };
 
   const handleBulkDelete = () => {
     selectedItems.forEach(id => {
       const item = items.find(i => i.id === id);
       if (item) {
-        if (item.type === 'product') {
-          db.deleteProduct(id);
-        } else {
-          db.deleteMaterial(id);
-        }
+        db.deleteMaterial(id);
       }
     });
     loadAllItems();
     setShowDeleteConfirm(false);
     setSelectedItems([]);
   };
+
+  // Filter Change Handlers
+  const handleFilterChange = (field: keyof FilterState, value: string) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters(prev => ({ ...prev, search: e.target.value }));
+  };
+
+  // Selection Handlers
+  const toggleSelectAll = () => {
+    if (selectedItems.length === filteredItems.length) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(filteredItems.map(item => item.id));
+    }
+  };
+
+  const handleSelectItem = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedItems(prev => [...prev, id]);
+    } else {
+      setSelectedItems(prev => prev.filter(itemId => itemId !== id));
+    }
+  };
+
+  // Import Handler
+  const handleImportSuccess = () => {
+    loadAllItems();
+    setShowImportDialog(false);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Filters Section */}
+      {/* Header Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-            ویرایش کالا و متریال
+            ویرایش متریال
           </h2>
           <div className="flex gap-2">
             <button
@@ -158,55 +261,231 @@ export default function EditingMP() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input
-            type="text"
-            placeholder="جستجو..."
-            value={filters.search}
-            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                     bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-          />
+        {/* Search and Filter Controls */}
+        <div className="space-y-4">
+          {/* Global Search */}
+          <div className="relative">
+            <input
+              type="text"
+              value={filters.search}
+              onChange={handleSearchChange}
+              placeholder="جستجوی کلی..."
+              className="w-full px-4 py-2 pr-10 rounded-lg border border-gray-300 dark:border-gray-600 
+                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          </div>
 
-          <select
-            value={filters.type}
-            onChange={(e) => setFilters({ ...filters, type: e.target.value as FilterState['type'] })}
-            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                     bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="all">همه</option>
-            <option value="products">کالاها</option>
-            <option value="materials">متریال‌ها</option>
-          </select>
+          {/* Advanced Filters Toggle */}
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="flex items-center gap-2 text-blue-500 hover:text-blue-600"
+            >
+              <Filter className="h-4 w-4" />
+              {showAdvancedFilters ? 'مخفی کردن فیلترها' : 'نمایش فیلترهای پیشرفته'}
+            </button>
+            {Object.values(filters).some(value => value !== '') && (
+              <button
+                onClick={clearFilters}
+                className="text-gray-500 hover:text-gray-600 flex items-center gap-1"
+              >
+                <X className="h-4 w-4" />
+                پاک کردن فیلترها
+              </button>
+            )}
+          </div>
 
-          <input
-            type="text"
-            placeholder="فیلتر بر اساس بخش..."
-            value={filters.department}
-            onChange={(e) => setFilters({ ...filters, department: e.target.value })}
-            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                     bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-          />
+          {/* Advanced Filters */}
+          {showAdvancedFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  نام
+                </label>
+                <input
+                  type="text"
+                  value={filters.name}
+                  onChange={(e) => handleFilterChange('name', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  کد
+                </label>
+                <input
+                  type="text"
+                  value={filters.code}
+                  onChange={(e) => handleFilterChange('code', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  بخش
+                </label>
+                <input
+                  type="text"
+                  value={filters.department}
+                  onChange={(e) => handleFilterChange('department', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  واحد
+                </label>
+                <select
+                  value={filters.unit}
+                  onChange={(e) => handleFilterChange('unit', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="">همه واحدها</option>
+                  {units.map(unit => (
+                    <option key={unit.id} value={unit.id}>
+                      {unit.name} ({unit.symbol})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  حداقل قیمت
+                </label>
+                <input
+                  type="number"
+                  value={filters.minPrice}
+                  onChange={(e) => handleFilterChange('minPrice', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  حداکثر قیمت
+                </label>
+                <input
+                  type="number"
+                  value={filters.maxPrice}
+                  onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Results Summary */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 flex justify-between items-center">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          نمایش {filteredItems.length} مورد از {items.length} مورد
+        </div>
+        {selectedItems.length > 0 && (
+          <div className="text-sm text-blue-600 dark:text-blue-400">
+            {selectedItems.length} مورد انتخاب شده
+          </div>
+        )}
+      </div>
+
       {/* Table Section */}
-      <EditingTable
-        items={items}
-        selectedItems={selectedItems}
-        onSelectItems={setSelectedItems}
-        onSort={handleSort}
-        units={units}
-      />
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th className="px-4 py-3 w-12">
+                <input
+                  type="checkbox"
+                  checked={selectedItems.length === filteredItems.length && filteredItems.length > 0}
+                  onChange={toggleSelectAll}
+                  className="rounded text-blue-500 focus:ring-blue-500"
+                />
+              </th>
+              {[
+                { key: 'name' as const, label: 'نام' },
+                { key: 'code' as const, label: 'کد' },
+                { key: 'department' as const, label: 'بخش' },
+                { key: 'unit' as const, label: 'واحد' },
+                { key: 'price' as const, label: 'قیمت' }
+              ].map(column => (
+                <th
+                  key={column.key}
+                  onClick={() => handleSort(column.key)}
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 
+                           uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                >
+                  <div className="flex items-center gap-2">
+                    {column.label}
+                    <ArrowUpDown className={`h-4 w-4 ${
+                      sort.field === column.key 
+                        ? 'text-blue-500' 
+                        : 'text-gray-400'
+                    }`} />
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            {filteredItems.map(item => (
+              <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <td className="px-4 py-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.includes(item.id)}
+                    onChange={(e) => handleSelectItem(item.id, e.target.checked)}
+                    className="rounded text-blue-500 focus:ring-blue-500"
+                  />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  {item.name}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  {item.code}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  {item.department}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  {getUnitName(item.unit || '')}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  {item.price.toLocaleString()} ریال
+                </td>
+              </tr>
+            ))}
+            {filteredItems.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                  موردی یافت نشد
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* Dialogs */}
-      <BulkEditDialog
-        isOpen={showBulkEdit}
-        onClose={() => setShowBulkEdit(false)}
-        onConfirm={handleBulkEdit}
-        selectedCount={selectedItems.length}
-        units={units}
-      />
+      {showBulkEdit && (
+        <BulkEditDialog
+          isOpen={showBulkEdit}
+          onClose={() => setShowBulkEdit(false)}
+          onConfirm={handleBulkEdit}
+          selectedCount={selectedItems.length}
+          units={units}
+        />
+      )}
 
       <DeleteConfirmDialog
         isOpen={showDeleteConfirm}
@@ -215,14 +494,10 @@ export default function EditingMP() {
         onCancel={() => setShowDeleteConfirm(false)}
       />
 
-      {/* Material Import Dialog */}
       {showImportDialog && (
         <MaterialImport
           onClose={() => setShowImportDialog(false)}
-          onSuccess={() => {
-            loadAllItems();
-            setShowImportDialog(false);
-          }}
+          onSuccess={handleImportSuccess}
         />
       )}
     </div>
