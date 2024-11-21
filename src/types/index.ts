@@ -12,6 +12,7 @@ export interface Item {
 }
 
 export interface RecipeMaterial {
+  [x: string]: any;
   materialId: string;
   unit: string;
   amount: number;

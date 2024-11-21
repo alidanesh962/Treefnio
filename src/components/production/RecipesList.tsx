@@ -1,7 +1,5 @@
-// src/components/production/RecipesList.tsx
-
 import React from 'react';
-import { Edit2, ClipboardList } from 'lucide-react';
+import { Edit2, ClipboardList, MessageSquare } from 'lucide-react';
 import { ProductRecipe, Item, MaterialUnit } from '../../types';
 import { db } from '../../database';
 
@@ -81,24 +79,39 @@ export default function RecipesList({
                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       قیمت کل
                     </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      یادداشت
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {recipe.materials.map((material, index) => (
-                    <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {getMaterialName(material.materialId)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {material.amount} {getUnitSymbol(material.unit)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {material.unitPrice.toLocaleString()} ریال
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {material.totalPrice.toLocaleString()} ریال
-                      </td>
-                    </tr>
+                    <React.Fragment key={index}>
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {getMaterialName(material.materialId)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {material.amount} {getUnitSymbol(material.unit)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {material.unitPrice.toLocaleString()} ریال
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {material.totalPrice.toLocaleString()} ریال
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                          {material.note ? (
+                            <div className="flex items-start gap-2">
+                              <MessageSquare className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                              <span className="text-gray-600 dark:text-gray-400">
+                                {material.note}
+                              </span>
+                            </div>
+                          ) : null}
+                        </td>
+                      </tr>
+                    </React.Fragment>
                   ))}
                   <tr className="bg-gray-50 dark:bg-gray-700">
                     <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white text-left">
@@ -107,6 +120,7 @@ export default function RecipesList({
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                       {calculateTotalCost(recipe).toLocaleString()} ریال
                     </td>
+                    <td></td>
                   </tr>
                 </tbody>
               </table>

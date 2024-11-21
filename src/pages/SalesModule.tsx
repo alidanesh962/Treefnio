@@ -1,27 +1,49 @@
-// src/pages/SalesModule.tsx
+// src/pages/ProductionModule.tsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Menu, X, ShoppingCart, ChevronLeft, 
-  DollarSign, Receipt, Package
+  LogOut, Menu, X, Package, ChevronLeft, 
+  Plus, List, Edit3
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
+import ProductDefinitionForm from '../components/production/ProductDefinitionForm';
+import ProductsList from '../components/production/ProductsList';
+import EditingProducts from '../components/production/EditingProducts';
+import RecipeDefinitionForm from '../components/production/RecipeDefinitionForm';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
-import { CurrentUser } from '../types';
+import { db } from '../database';
+import { CurrentUser, ProductDefinition } from '../types';
 
-export default function SalesModule() {
+export default function ProductionModule() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(getCurrentUser());
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const [activeMenu, setActiveMenu] = useState('new-sale');
+  const [activeMenu, setActiveMenu] = useState('products-list');
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<ProductDefinition | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!currentUser) {
       navigate('/login');
       return;
+    }
+
+    // Initialize default departments if none exist
+    const saleDepts = db.getDepartmentsByType('sale');
+    const prodDepts = db.getDepartmentsByType('production');
+    
+    if (saleDepts.length === 0) {
+      console.log('Initializing default sale department');
+      db.addDepartment('فروش عمومی', 'sale');
+    }
+    
+    if (prodDepts.length === 0) {
+      console.log('Initializing default production department');
+      db.addDepartment('تولید عمومی', 'production');
     }
   }, [currentUser, navigate]);
 
@@ -43,10 +65,51 @@ export default function SalesModule() {
     setSidebarOpen(!isSidebarOpen);
   };
 
+  const handleProductSelected = (product: ProductDefinition) => {
+    console.log('Product selected:', product);
+    setSelectedProduct(product);
+    setActiveMenu('recipe-definition');
+  };
+
+  const getMenuContent = () => {
+    switch (activeMenu) {
+      case 'product-definition':
+        return (
+          <ProductDefinitionForm 
+            onBack={() => setActiveMenu('products-list')}
+            onSuccess={() => {
+              setRefreshTrigger(prev => prev + 1);
+              setActiveMenu('products-list');
+            }}
+          />
+        );
+      case 'products-list':
+        return (
+          <ProductsList 
+            onProductSelect={handleProductSelected}
+            key={refreshTrigger}
+          />
+        );
+      case 'recipe-definition':
+        return selectedProduct ? (
+          <RecipeDefinitionForm 
+            product={selectedProduct}
+            onBack={() => {
+              setSelectedProduct(null);
+              setActiveMenu('products-list');
+            }}
+          />
+        ) : null;
+      case 'edit-products':
+        return <EditingProducts />;
+      default:
+        return null;
+    }
+  };
+
   if (!currentUser) {
     return null;
   }
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       {/* Sidebar */}
@@ -57,7 +120,7 @@ export default function SalesModule() {
         border-l border-gray-200 dark:border-gray-700 z-30`}
       >
         <div className="flex items-center justify-between p-4">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">ماژول فروش</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">ماژول تولید</h2>
           <button 
             onClick={toggleSidebar}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -68,38 +131,47 @@ export default function SalesModule() {
         
         <nav className="mt-4">
           <button
-            onClick={() => setActiveMenu('new-sale')}
+            onClick={() => {
+              setSelectedProduct(null);
+              setActiveMenu('products-list');
+            }}
             className={`flex items-center w-full px-4 py-2 text-right
-                      ${activeMenu === 'new-sale' 
+                      ${activeMenu === 'products-list' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
-            <ShoppingCart className="h-5 w-5 ml-2" />
-            فروش جدید
+            <List className="h-5 w-5 ml-2" />
+            لیست محصولات
             <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
 
           <button
-            onClick={() => setActiveMenu('invoices')}
+            onClick={() => {
+              setSelectedProduct(null);
+              setActiveMenu('product-definition');
+            }}
             className={`flex items-center w-full px-4 py-2 text-right
-                      ${activeMenu === 'invoices' 
+                      ${activeMenu === 'product-definition' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
-            <Receipt className="h-5 w-5 ml-2" />
-            فاکتورها
+            <Plus className="h-5 w-5 ml-2" />
+            تعریف محصول جدید
             <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
 
           <button
-            onClick={() => setActiveMenu('products')}
+            onClick={() => {
+              setSelectedProduct(null);
+              setActiveMenu('edit-products');
+            }}
             className={`flex items-center w-full px-4 py-2 text-right
-                      ${activeMenu === 'products' 
+                      ${activeMenu === 'edit-products' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
-            <Package className="h-5 w-5 ml-2" />
-            محصولات
+            <Edit3 className="h-5 w-5 ml-2" />
+            ویرایش گروهی کالا
             <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
         </nav>
@@ -137,17 +209,7 @@ export default function SalesModule() {
 
         {/* Main Content */}
         <main className="p-8">
-          {/* Placeholder content - you'll need to implement these components */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-              {activeMenu === 'new-sale' && 'ثبت فروش جدید'}
-              {activeMenu === 'invoices' && 'مدیریت فاکتورها'}
-              {activeMenu === 'products' && 'مدیریت محصولات'}
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              این بخش در حال توسعه است...
-            </p>
-          </div>
+          {getMenuContent()}
         </main>
       </div>
 

@@ -1,16 +1,15 @@
 // src/pages/ProductionModule.tsx
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Menu, X, Package, ChevronLeft, 
-  Plus, List
+  LogOut, Menu, X, List, Plus, Edit3
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
 import ProductDefinitionForm from '../components/production/ProductDefinitionForm';
 import ProductsList from '../components/production/ProductsList';
+import EditingProducts from '../components/production/EditingProducts';
 import RecipeDefinitionForm from '../components/production/RecipeDefinitionForm';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { db } from '../database';
@@ -99,6 +98,8 @@ export default function ProductionModule() {
             }}
           />
         ) : null;
+      case 'edit-products':
+        return <EditingProducts />;
       default:
         return null;
     }
@@ -126,21 +127,25 @@ export default function ProductionModule() {
             {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
-        
+
         <nav className="mt-4">
+          <div className="flex items-center mb-2 px-4">
+            <Menu className="h-5 w-5 text-gray-400" />
+            <span className="mr-2 text-sm text-gray-400">منو</span>
+          </div>
+
           <button
             onClick={() => {
               setSelectedProduct(null);
               setActiveMenu('products-list');
             }}
-            className={`flex items-center w-full px-4 py-2 text-right
+            className={`flex items-center w-full px-4 py-2 text-sm text-right gap-2
                       ${activeMenu === 'products-list' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
-            <List className="h-5 w-5 ml-2" />
+            <List className="h-4 w-4" />
             لیست محصولات
-            <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
 
           <button
@@ -148,14 +153,27 @@ export default function ProductionModule() {
               setSelectedProduct(null);
               setActiveMenu('product-definition');
             }}
-            className={`flex items-center w-full px-4 py-2 text-right
+            className={`flex items-center w-full px-4 py-2 text-sm text-right gap-2
                       ${activeMenu === 'product-definition' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
-            <Plus className="h-5 w-5 ml-2" />
+            <Plus className="h-4 w-4" />
             تعریف محصول جدید
-            <ChevronLeft className="h-4 w-4 mr-auto" />
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedProduct(null);
+              setActiveMenu('edit-products');
+            }}
+            className={`flex items-center w-full px-4 py-2 text-sm text-right gap-2
+                      ${activeMenu === 'edit-products' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+          >
+            <Edit3 className="h-4 w-4" />
+            ویرایش محصولات
           </button>
         </nav>
       </div>
