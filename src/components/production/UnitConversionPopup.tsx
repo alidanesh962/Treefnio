@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { MaterialUnit } from '../../types';
 
@@ -10,57 +10,66 @@ interface UnitConversionPopupProps {
   availableUnits: MaterialUnit[];
 }
 
-// Predefined conversion units
-const CONVERSION_UNITS = [
-  { id: 'g', name: 'گرم (g)' },
-  { id: 'kg', name: 'کیلوگرم (kg)' },
-  { id: 'ml', name: 'میلی لیتر (ml)' },
-  { id: 'l', name: 'لیتر (l)' }
-];
-
-// Function to get conversion factor between two units
-const getConversionFactor = (fromUnit: string, toUnit: string): number => {
-  // Weight conversions
-  if (fromUnit === 'g' && toUnit === 'kg') return 0.001;
-  if (fromUnit === 'kg' && toUnit === 'g') return 1000;
-
-  // Volume conversions
-  if (fromUnit === 'ml' && toUnit === 'l') return 0.001;
-  if (fromUnit === 'l' && toUnit === 'ml') return 1000;
-
-  // If same unit or unknown conversion, return 1
-  return 1;
-};
-
-// Function to determine standardized unit from database unit
-const getStandardUnit = (unitName: string): string => {
-  const name = unitName.toLowerCase();
+// Function to identify the standardized unit type
+const getUnitType = (unitName: string): string => {
+  const name = unitName.trim().toLowerCase();
   
+  // Check for Kilogram variations
   if (name.includes('کیلوگرم') || name.includes('کیلو گرم') || name.includes('کیلو')) {
     return 'kg';
   }
+  
+  // Check for Gram
   if (name.includes('گرم') && !name.includes('کیلو')) {
     return 'g';
   }
-  if (name.includes('میلی لیتر') || name.includes('سی سی')) {
-    return 'ml';
-  }
+  
+  // Check for Liter
   if (name.includes('لیتر')) {
     return 'l';
   }
   
-  return 'unknown';
+  // Check for Milliliter variations
+  if (name.includes('میلی لیتر') || name.includes('سی سی')) {
+    return 'ml';
+  }
+  
+  return name; // Return original if no match
+};
+
+// Function to get conversion factor between two units
+const getConversionFactor = (fromUnit: string, toUnit: string): number => {
+  const from = getUnitType(fromUnit);
+  const to = getUnitType(toUnit);
+
+  // Weight conversions
+  if (from === 'g' && to === 'kg') return 0.001;
+  if (from === 'kg' && to === 'g') return 1000;
+
+  // Volume conversions
+  if (from === 'ml' && to === 'l') return 0.001;
+  if (from === 'l' && to === 'ml') return 1000;
+
+  // If same unit or unknown conversion, return 1
+  return 1;
 };
 
 const UnitConversionPopup: React.FC<UnitConversionPopupProps> = ({
   isOpen,
   onClose,
   onConvert,
-  targetUnit
+  targetUnit,
+  availableUnits
 }) => {
   const [fromAmount, setFromAmount] = useState<string>('');
-  const [fromUnit, setFromUnit] = useState<string>(CONVERSION_UNITS[0].id);
+  const [fromUnit, setFromUnit] = useState<string>('');
   const [convertedAmount, setConvertedAmount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (availableUnits.length > 0) {
+      setFromUnit(availableUnits[0].id);
+    }
+  }, [availableUnits]);
 
   const handleConvert = () => {
     if (!fromAmount || !targetUnit) return;
@@ -68,11 +77,13 @@ const UnitConversionPopup: React.FC<UnitConversionPopupProps> = ({
     const amount = parseFloat(fromAmount);
     if (isNaN(amount)) return;
 
-    // Get the target unit's standardized type
-    const toUnit = getStandardUnit(targetUnit.name);
+    const selectedFromUnit = availableUnits.find(u => u.id === fromUnit);
+    if (!selectedFromUnit) return;
+
+    // Get the conversion factor based on unit names
+    const factor = getConversionFactor(selectedFromUnit.name, targetUnit.name);
     
-    // Get conversion factor and calculate
-    const factor = getConversionFactor(fromUnit, toUnit);
+    // Calculate and set the converted amount
     const result = amount * factor;
     setConvertedAmount(result);
   };
@@ -88,8 +99,6 @@ const UnitConversionPopup: React.FC<UnitConversionPopupProps> = ({
   };
 
   if (!isOpen || !targetUnit) return null;
-
-  const targetStandardUnit = getStandardUnit(targetUnit.name);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -128,22 +137,11 @@ const UnitConversionPopup: React.FC<UnitConversionPopupProps> = ({
               className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                        bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
             >
-              {CONVERSION_UNITS
-                .filter(unit => {
-                  // Only show compatible units (weight with weight, volume with volume)
-                  const isFromWeight = unit.id === 'g' || unit.id === 'kg';
-                  const isToWeight = targetStandardUnit === 'g' || targetStandardUnit === 'kg';
-                  const isFromVolume = unit.id === 'ml' || unit.id === 'l';
-                  const isToVolume = targetStandardUnit === 'ml' || targetStandardUnit === 'l';
-                  
-                  return (isFromWeight && isToWeight) || (isFromVolume && isToVolume);
-                })
-                .map(unit => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.name}
-                  </option>
-                ))
-              }
+              {availableUnits.map(unit => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
             </select>
           </div>
 
