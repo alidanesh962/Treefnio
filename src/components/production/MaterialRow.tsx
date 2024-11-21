@@ -1,6 +1,9 @@
+// src/components/production/MaterialRow.tsx
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Trash2, Search, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
+import { Trash2, Search, ChevronDown, ChevronUp, MessageSquare, Calculator } from 'lucide-react';
 import type { MaterialUnit, RecipeMaterial, Item } from '../../types';
+import UnitConversionPopup from './UnitConversionPopup';
 
 interface MaterialRowProps {
   material: RecipeMaterial;
@@ -26,6 +29,7 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
+  const [showUnitConversion, setShowUnitConversion] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,12 +63,11 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
     const selectedMaterial = materials.find(m => m.id === materialId);
     if (selectedMaterial) {
       const totalPrice = material.amount * selectedMaterial.price;
-      // Now also set the unit from the selected material
       onChange(index, {
         materialId,
         unitPrice: selectedMaterial.price,
         totalPrice: totalPrice,
-        unit: selectedMaterial.unit || '' // Set the unit from the material
+        unit: selectedMaterial.unit || ''
       });
     }
     setIsDropdownOpen(false);
@@ -73,6 +76,10 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
 
   const handleNoteChange = (note: string) => {
     onChange(index, { note });
+  };
+
+  const handleConvertedAmount = (amount: number) => {
+    handleQuantityChange(amount);
   };
 
   const filteredMaterials = materials.filter(m =>
@@ -97,7 +104,6 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
       )}
 
       <div className="space-y-4">
-        {/* Main Material Row */}
         <div className="grid grid-cols-12 gap-4 items-start bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
           {/* Delete Button */}
           <div className="col-span-1 flex justify-center">
@@ -182,22 +188,32 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
             )}
           </div>
 
-          {/* Amount Input */}
+          {/* Amount Input with Conversion Button */}
           <div className="col-span-2">
-            <input
-              type="number"
-              value={material.amount || ''}
-              onChange={(e) => handleQuantityChange(parseFloat(e.target.value) || 0)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-left"
-              min="0"
-              step="0.01"
-              placeholder="مقدار"
-              dir="ltr"
-            />
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={material.amount || ''}
+                onChange={(e) => handleQuantityChange(parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-left"
+                min="0"
+                step="0.01"
+                placeholder="مقدار"
+                dir="ltr"
+              />
+              <button
+                onClick={() => setShowUnitConversion(true)}
+                className="p-2 text-gray-500 hover:text-gray-600 transition-colors
+                         hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg"
+                title="تبدیل واحد"
+              >
+                <Calculator className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
-          {/* Unit Display (Read-only) */}
+          {/* Unit Display */}
           <div className="col-span-2">
             <div className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                           bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-sm">
@@ -242,6 +258,15 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Unit Conversion Popup */}
+        <UnitConversionPopup
+          isOpen={showUnitConversion}
+          onClose={() => setShowUnitConversion(false)}
+          onConvert={handleConvertedAmount}
+          targetUnit={selectedUnit}
+          availableUnits={units}
+        />
 
         {/* Note Input */}
         {showNoteInput && (
