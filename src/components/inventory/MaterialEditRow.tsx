@@ -71,6 +71,11 @@ const MaterialEditRow: React.FC<MaterialEditRowProps> = ({
     onCancel(index);
   };
 
+  const getUnitDisplay = (unitId: string): string => {
+    const unit = units.find(u => u.id === unitId);
+    return unit ? `${unit.name} (${unit.symbol})` : '-';
+  };
+
   if (!isEditing) {
     return (
       <tr className={material.hasError ? 'bg-red-50 dark:bg-red-900/20' : ''}>
@@ -94,7 +99,7 @@ const MaterialEditRow: React.FC<MaterialEditRowProps> = ({
           {material.department}
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-          {units.find(u => u.id === material.unit)?.name || ''}
+          {getUnitDisplay(material.unit)}
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
           {material.price.toLocaleString()}
@@ -168,18 +173,10 @@ const MaterialEditRow: React.FC<MaterialEditRowProps> = ({
         />
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <select
-          value={editedValues.unit}
-          onChange={(e) => setEditedValues(prev => ({ ...prev, unit: e.target.value }))}
-          className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 
-                   bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-        >
-          {units.map(unit => (
-            <option key={unit.id} value={unit.id}>
-              {unit.name} ({unit.symbol})
-            </option>
-          ))}
-        </select>
+        <div className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 
+                     bg-gray-100 dark:bg-gray-600 text-sm text-gray-900 dark:text-white">
+          {getUnitDisplay(material.unit)}
+        </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <input

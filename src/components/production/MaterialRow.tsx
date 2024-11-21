@@ -59,10 +59,12 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
     const selectedMaterial = materials.find(m => m.id === materialId);
     if (selectedMaterial) {
       const totalPrice = material.amount * selectedMaterial.price;
+      // Now also set the unit from the selected material
       onChange(index, {
         materialId,
         unitPrice: selectedMaterial.price,
-        totalPrice: totalPrice
+        totalPrice: totalPrice,
+        unit: selectedMaterial.unit || '' // Set the unit from the material
       });
     }
     setIsDropdownOpen(false);
@@ -79,6 +81,7 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
   );
 
   const selectedMaterial = materials.find(m => m.id === material.materialId);
+  const selectedUnit = units.find(u => u.id === (selectedMaterial?.unit || material.unit));
 
   return (
     <div>
@@ -194,20 +197,12 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
             />
           </div>
 
-          {/* Unit Selection */}
+          {/* Unit Display (Read-only) */}
           <div className="col-span-2">
-            <select
-              value={material.unit}
-              onChange={(e) => onChange(index, { unit: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-            >
-              {units.map(unit => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name} ({unit.symbol})
-                </option>
-              ))}
-            </select>
+            <div className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                          bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-sm">
+              {selectedUnit ? `${selectedUnit.name} (${selectedUnit.symbol})` : '-'}
+            </div>
           </div>
 
           {/* Unit Price Display */}
