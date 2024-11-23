@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X } from 'lucide-react';
 import type { MaterialUnit } from '../../types';
 
@@ -10,49 +10,21 @@ interface UnitConversionPopupProps {
   availableUnits: MaterialUnit[];
 }
 
-// Function to identify the standardized unit type
-const getUnitType = (unitName: string): string => {
-  const name = unitName.trim().toLowerCase();
-  
-  // Check for Kilogram variations
-  if (name.includes('کیلوگرم') || name.includes('کیلو گرم') || name.includes('کیلو')) {
-    return 'kg';
-  }
-  
-  // Check for Gram
-  if (name.includes('گرم') && !name.includes('کیلو')) {
-    return 'g';
-  }
-  
-  // Check for Liter
-  if (name.includes('لیتر')) {
-    return 'l';
-  }
-  
-  // Check for Milliliter variations
-  if (name.includes('میلی لیتر') || name.includes('سی سی')) {
-    return 'ml';
-  }
-  
-  return name; // Return original if no match
-};
+interface ConversionFactor {
+  from: string;
+  to: string;
+  factor: number;
+}
 
-// Function to get conversion factor between two units
-const getConversionFactor = (fromUnit: string, toUnit: string): number => {
-  const from = getUnitType(fromUnit);
-  const to = getUnitType(toUnit);
-
+// Conversion factors for common units
+const CONVERSION_FACTORS: ConversionFactor[] = [
   // Weight conversions
-  if (from === 'g' && to === 'kg') return 0.001;
-  if (from === 'kg' && to === 'g') return 1000;
-
+  { from: 'g', to: 'kg', factor: 0.001 },
+  { from: 'kg', to: 'g', factor: 1000 },
   // Volume conversions
-  if (from === 'ml' && to === 'l') return 0.001;
-  if (from === 'l' && to === 'ml') return 1000;
-
-  // If same unit or unknown conversion, return 1
-  return 1;
-};
+  { from: 'ml', to: 'l', factor: 0.001 },
+  { from: 'l', to: 'ml', factor: 1000 },
+];
 
 const UnitConversionPopup: React.FC<UnitConversionPopupProps> = ({
   isOpen,
@@ -62,43 +34,55 @@ const UnitConversionPopup: React.FC<UnitConversionPopupProps> = ({
   availableUnits
 }) => {
   const [fromAmount, setFromAmount] = useState<string>('');
-  const [fromUnit, setFromUnit] = useState<string>('');
+  const [fromUnit, setFromUnit] = useState<string>(availableUnits[0]?.id || '');
   const [convertedAmount, setConvertedAmount] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (availableUnits.length > 0) {
-      setFromUnit(availableUnits[0].id);
-    }
-  }, [availableUnits]);
-
+  // Find the actual unit symbols for conversion
+  const selectedFromUnit = availableUnits.find(u => u.id === fromUnit);
+  
   const handleConvert = () => {
-    if (!fromAmount || !targetUnit) return;
+    if (!fromAmount || !selectedFromUnit || !targetUnit) return;
 
     const amount = parseFloat(fromAmount);
     if (isNaN(amount)) return;
 
-    const selectedFromUnit = availableUnits.find(u => u.id === fromUnit);
-    if (!selectedFromUnit) return;
+    // If the units are the same, no conversion needed
+    if (selectedFromUnit.symbol === targetUnit.symbol) {
+      setConvertedAmount(amount);
+      return;
+    }
 
-    // Get the conversion factor based on unit names
-    const factor = getConversionFactor(selectedFromUnit.name, targetUnit.name);
-    
-    // Calculate and set the converted amount
-    const result = amount * factor;
-    setConvertedAmount(result);
+    // Find conversion factor
+    const factor = CONVERSION_FACTORS.find(
+      cf => cf.from === selectedFromUnit.symbol && cf.to === targetUnit.symbol
+    );
+
+    if (factor) {
+      setConvertedAmount(amount * factor.factor);
+    } else {
+      // Try reverse conversion
+      const reverseFactor = CONVERSION_FACTORS.find(
+        cf => cf.from === targetUnit.symbol && cf.to === selectedFromUnit.symbol
+      );
+      if (reverseFactor) {
+        setConvertedAmount(amount / reverseFactor.factor);
+      } else {
+        // If no conversion found, keep the same value
+        setConvertedAmount(amount);
+      }
+    }
   };
 
   const handleApply = () => {
     if (convertedAmount !== null) {
       onConvert(convertedAmount);
       onClose();
-      // Reset state
       setFromAmount('');
       setConvertedAmount(null);
     }
   };
 
-  if (!isOpen || !targetUnit) return null;
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -139,7 +123,7 @@ const UnitConversionPopup: React.FC<UnitConversionPopupProps> = ({
             >
               {availableUnits.map(unit => (
                 <option key={unit.id} value={unit.id}>
-                  {unit.name}
+                  {unit.symbol}
                 </option>
               ))}
             </select>
@@ -155,11 +139,11 @@ const UnitConversionPopup: React.FC<UnitConversionPopupProps> = ({
             <div className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-left"
                  dir="ltr">
-              {convertedAmount?.toFixed(3) || 'مقدار تبدیل شده'}
+              {convertedAmount?.toString() || 'مقدار تبدیل شده'}
             </div>
             <div className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-center">
-              {targetUnit.name}
+              {targetUnit?.symbol || '-'}
             </div>
           </div>
 
