@@ -1,5 +1,3 @@
-// src/components/production/ProductsList.tsx
-
 import React, { useState, useEffect } from 'react';
 import { 
   Search, 
@@ -31,7 +29,6 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
   }>({ isOpen: false, productId: '', productName: '' });
 
   useEffect(() => {
-    console.log('ProductsList mounted - Loading products');
     loadProducts();
   }, []);
 
@@ -40,10 +37,29 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
       setIsLoading(true);
       setError(null);
 
-      // Load products
-      const loadedProducts = db.getProductDefinitions();
-      console.log('Loaded products:', loadedProducts);
-      setProducts(loadedProducts);
+      // Load products from all sources
+      const definedProducts = db.getProductDefinitions();
+      const inventoryProducts = db.getProducts();
+      
+      // Combine and deduplicate products
+      const allProducts = [...definedProducts];
+      
+      // Add any products from inventory that aren't already in definitions
+      inventoryProducts.forEach(invProduct => {
+        if (!definedProducts.some(defProduct => defProduct.code === invProduct.code)) {
+          allProducts.push({
+            id: invProduct.id,
+            name: invProduct.name,
+            code: invProduct.code,
+            saleDepartment: invProduct.department,
+            productionSegment: invProduct.department,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          });
+        }
+      });
+
+      setProducts(allProducts);
 
       // Load departments for reference
       const saleDepts = db.getDepartmentsByType('sale');
@@ -71,7 +87,10 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
           return;
         }
 
+        // Delete from both product definitions and inventory
         db.deleteProductDefinition(deleteConfirm.productId);
+        db.deleteProduct(deleteConfirm.productId);
+        
         await loadProducts(); // Reload the list
         console.log('Product deleted successfully');
         
