@@ -154,7 +154,7 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
                       className="w-full pl-8 pr-3 py-1.5 rounded-md border border-gray-300 
                                dark:border-gray-600 bg-gray-50 dark:bg-gray-700 
                                text-gray-900 dark:text-white text-sm"
-                      placeholder="جستجو..."
+                      placeholder=""
                     />
                     <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   </div>
