@@ -7,7 +7,6 @@ import {
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
-import ProductDefinitionForm from '../components/production/ProductDefinitionForm';
 import ProductsList from '../components/production/ProductsList';
 import EditingProducts from '../components/production/EditingProducts';
 import RecipeDefinitionForm from '../components/production/RecipeDefinitionForm';
@@ -71,16 +70,6 @@ export default function ProductionModule() {
 
   const getMenuContent = () => {
     switch (activeMenu) {
-      case 'product-definition':
-        return (
-          <ProductDefinitionForm 
-            onBack={() => setActiveMenu('products-list')}
-            onSuccess={() => {
-              setRefreshTrigger(prev => prev + 1);
-              setActiveMenu('products-list');
-            }}
-          />
-        );
       case 'products-list':
         return (
           <ProductsList 
@@ -129,17 +118,12 @@ export default function ProductionModule() {
         </div>
 
         <nav className="mt-4">
-          <div className="flex items-center mb-2 px-4">
-            <Menu className="h-5 w-5 text-gray-400" />
-            <span className="mr-2 text-sm text-gray-400">منو</span>
-          </div>
-
           <button
             onClick={() => {
               setSelectedProduct(null);
               setActiveMenu('products-list');
             }}
-            className={`flex items-center w-full px-4 py-2 text-sm text-right gap-2
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
                       ${activeMenu === 'products-list' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
@@ -151,23 +135,9 @@ export default function ProductionModule() {
           <button
             onClick={() => {
               setSelectedProduct(null);
-              setActiveMenu('product-definition');
-            }}
-            className={`flex items-center w-full px-4 py-2 text-sm text-right gap-2
-                      ${activeMenu === 'product-definition' 
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-          >
-            <Plus className="h-4 w-4" />
-            تعریف محصول جدید
-          </button>
-
-          <button
-            onClick={() => {
-              setSelectedProduct(null);
               setActiveMenu('edit-products');
             }}
-            className={`flex items-center w-full px-4 py-2 text-sm text-right gap-2
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
                       ${activeMenu === 'edit-products' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}

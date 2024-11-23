@@ -1,7 +1,6 @@
 // src/components/production/ProductDefinitionForm.tsx
-
 import React, { useState, useEffect } from 'react';
-import { Plus, AlertCircle } from 'lucide-react';
+import { AlertCircle, X } from 'lucide-react';
 import { db } from '../../database';
 import { Department } from '../../types';
 import DepartmentDialog from './DepartmentDialog';
@@ -28,7 +27,6 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    console.log('ProductDefinitionForm mounted - Loading departments');
     loadDepartments();
   }, []);
 
@@ -36,10 +34,6 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
     try {
       const saleDepts = db.getDepartmentsByType('sale');
       const prodDepts = db.getDepartmentsByType('production');
-      
-      console.log('Loaded sale departments:', saleDepts);
-      console.log('Loaded production departments:', prodDepts);
-      
       setSaleDepartments(saleDepts);
       setProductionSegments(prodDepts);
     } catch (error) {
@@ -50,11 +44,8 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
 
   const handleAddDepartment = (name: string, type: 'sale' | 'production') => {
     try {
-      console.log(`Adding new ${type} department:`, name);
       const newDept = db.addDepartment(name, type);
-      console.log('New department created:', newDept);
-      
-      loadDepartments(); // Reload all departments
+      loadDepartments();
       
       if (type === 'sale') {
         setFormData(prev => ({ ...prev, saleDepartment: newDept.id }));
@@ -69,39 +60,8 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
     }
   };
 
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = 'نام محصول الزامی است';
-    }
-    
-    if (!formData.code.trim()) {
-      newErrors.code = 'کد محصول الزامی است';
-    }
-    
-    if (!formData.saleDepartment) {
-      newErrors.saleDepartment = 'انتخاب واحد فروش الزامی است';
-    }
-    
-    if (!formData.productionSegment) {
-      newErrors.productionSegment = 'انتخاب واحد تولید الزامی است';
-    }
-
-    // Check for duplicate code
-    const existingProducts = db.getProductDefinitions();
-    if (existingProducts.some(p => p.code === formData.code.trim())) {
-      newErrors.code = 'این کد محصول قبلاً استفاده شده است';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>, type: 'sale' | 'production') => {
     const value = e.target.value;
-    console.log(`${type} department changed to:`, value);
-    
     if (value === 'new') {
       if (type === 'sale') {
         setShowSaleDeptDialog(true);
@@ -115,6 +75,32 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
         setFormData(prev => ({ ...prev, productionSegment: value }));
       }
     }
+  };
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'نام محصول الزامی است';
+    }
+    if (!formData.code.trim()) {
+      newErrors.code = 'کد محصول الزامی است';
+    }
+    if (!formData.saleDepartment) {
+      newErrors.saleDepartment = 'انتخاب واحد فروش الزامی است';
+    }
+    if (!formData.productionSegment) {
+      newErrors.productionSegment = 'انتخاب واحد تولید الزامی است';
+    }
+
+    // Check for duplicate code
+    const existingProducts = db.getProductDefinitions();
+    if (existingProducts.some(p => p.code === formData.code.trim())) {
+      newErrors.code = 'این کد محصول قبلاً استفاده شده است';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
@@ -147,16 +133,24 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
-        تعریف محصول جدید
-      </h2>
+    <div className="relative">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
+          تعریف محصول جدید
+        </h2>
+        <button
+          onClick={onBack}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
       {submitError && (
         <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 
                      rounded-lg flex items-center gap-2 text-red-600 dark:text-red-400">
-          <AlertCircle className="h-5 w-5" />
-          {submitError}
+          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+          <p>{submitError}</p>
         </div>
       )}
 
