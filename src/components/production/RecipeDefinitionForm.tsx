@@ -19,6 +19,7 @@ import {
 import MaterialRow from './MaterialRow';
 import RecipesList from './RecipesList';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
+import { exportRecipesToPDF } from '../../utils/recipePDFExport';
 
 interface RecipeDefinitionFormProps {
   product: ProductDefinition;
@@ -31,7 +32,7 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
   const [units, setUnits] = useState<MaterialUnit[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<ProductRecipe | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [batchSize, setBatchSize] = useState(1); // New state for batch size
+  const [batchSize, setBatchSize] = useState(1);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -51,7 +52,6 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
   const loadRecipes = () => {
     setRecipes(db.getProductRecipes(product.id));
   };
-
   const resetForm = () => {
     setFormData({
       name: '',
@@ -74,6 +74,7 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
       }))
     );
   };
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -113,7 +114,6 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
   const handleSubmit = () => {
     if (!validate()) return;
 
-    // Calculate amounts for single unit
     const singleUnitMaterials = calculateSingleUnitAmounts(formData.materials);
 
     const recipeData: Omit<ProductRecipe, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -141,7 +141,6 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
     loadRecipes();
     resetForm();
   };
-
   const handleDeleteRecipe = () => {
     if (selectedRecipe) {
       db.deleteProductRecipe(selectedRecipe.id);
@@ -165,10 +164,10 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
 
     const firstMaterial = materials[0];
     const newMaterial: RecipeMaterial = {
-      materialId: firstMaterial.id,
+      materialId: '',
       unit: units[0]?.id || '',
       amount: 0,
-      unitPrice: firstMaterial.price,
+      unitPrice: 0,
       totalPrice: 0
     };
 
@@ -184,6 +183,21 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
       materials: prev.materials.filter((_, i) => i !== index)
     }));
   };
+
+  const handleExportPDF = async (recipe: ProductRecipe) => {
+    try {
+      await exportRecipesToPDF({
+        recipes: [recipe],
+        materials,
+        units,
+        product
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+    }
+  };
+
+
   return (
     <div className="space-y-6">
       {/* Recipe Form */}
@@ -234,9 +248,6 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
               {errors.batchSize && (
                 <p className="mt-1 text-sm text-red-500">{errors.batchSize}</p>
               )}
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                مقادیر مواد اولیه برای این تعداد محصول محاسبه می‌شود و سپس برای یک واحد ذخیره می‌شود
-              </p>
             </div>
           </div>
 
@@ -296,10 +307,12 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
                   onDelete={handleRemoveMaterial}
                   error={errors[`material_${index}`] || errors[`amount_${index}`]}
                   showHeader={index === 0}
+                  batchSize={batchSize}
                 />
               ))}
             </div>
           </div>
+
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -314,8 +327,9 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
               placeholder="توضیحات اضافی..."
             />
           </div>
-{/* Action Buttons */}
-<div className="flex justify-end gap-4">
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-4">
             {selectedRecipe && (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
@@ -338,30 +352,30 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
       </div>
 
       {/* Recipes List */}
-      {recipes.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-            دستورهای پخت موجود
-          </h3>
-          <RecipesList
-            recipes={recipes}
-            materials={materials}
-            units={units}
-            onEdit={recipe => {
-              setSelectedRecipe(recipe);
-              setFormData({
-                name: recipe.name,
-                materials: recipe.materials,
-                notes: recipe.notes || '',
-                isActive: recipe.isActive
-              });
-              // Set batch size to 1 when editing existing recipe
-              setBatchSize(1);
-            }}
-            onSetActive={handleSetActive}
-          />
-        </div>
-      )}
+  {recipes.length > 0 && (
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+      <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+        دستورهای پخت موجود
+      </h3>
+      <RecipesList
+        recipes={recipes}
+        materials={materials}
+        units={units}
+        onEdit={recipe => {
+          setSelectedRecipe(recipe);
+          setFormData({
+            name: recipe.name,
+            materials: recipe.materials,
+            notes: recipe.notes || '',
+            isActive: recipe.isActive
+          });
+          setBatchSize(1);
+        }}
+        onSetActive={handleSetActive}
+        onExportPDF={handleExportPDF}
+      />
+    </div>
+  )}
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog

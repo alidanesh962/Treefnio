@@ -13,7 +13,7 @@ interface MaterialRowProps {
   onDelete: (index: number) => void;
   error?: string;
   showHeader?: boolean;
-  batchSize?: number;  // New prop for batch size
+  batchSize?: number;
 }
 
 const MaterialRow: React.FC<MaterialRowProps> = ({
@@ -25,7 +25,7 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
   onDelete,
   error,
   showHeader = false,
-  batchSize = 1  // Default to 1 if not provided
+  batchSize = 1
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -34,7 +34,6 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Effect for handling clicks outside dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -90,6 +89,7 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
 
   const selectedMaterial = materials.find(m => m.id === material.materialId);
   const selectedUnit = units.find(u => u.id === (selectedMaterial?.unit || material.unit));
+
   return (
     <div>
       {showHeader && (
@@ -105,7 +105,6 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
 
       <div className="space-y-4">
         <div className="grid grid-cols-12 gap-4 items-start bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
-          {/* Delete Button */}
           <div className="col-span-1 flex justify-center">
             <button
               onClick={() => onDelete(index)}
@@ -117,7 +116,6 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
             </button>
           </div>
 
-          {/* Material Selection with Search */}
           <div className="col-span-3 relative" ref={dropdownRef}>
             <div 
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
@@ -143,7 +141,6 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
             {isDropdownOpen && (
               <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg 
                             border border-gray-200 dark:border-gray-700 py-2 max-h-64 overflow-y-auto">
-                {/* Search Input */}
                 <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700 sticky top-0 
                               bg-white dark:bg-gray-800">
                   <div className="relative">
@@ -155,13 +152,12 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
                       className="w-full pl-8 pr-3 py-1.5 rounded-md border border-gray-300 
                                dark:border-gray-600 bg-gray-50 dark:bg-gray-700 
                                text-gray-900 dark:text-white text-sm"
-                      placeholder="جستجو..."
+                      placeholder="    جستجو..."
                     />
                     <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   </div>
                 </div>
 
-                {/* Materials List */}
                 <div className="mt-1">
                   {filteredMaterials.map((mat) => (
                     <button
@@ -190,7 +186,6 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
             )}
           </div>
 
-          {/* Amount Input with Batch Size Display */}
           <div className="col-span-2">
             <div className="space-y-2">
               <div className="flex gap-2">
@@ -222,7 +217,6 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
             </div>
           </div>
 
-          {/* Unit Display */}
           <div className="col-span-2">
             <div className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                           bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-sm">
@@ -230,11 +224,10 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
             </div>
           </div>
 
-          {/* Unit Price Display */}
           <div className="col-span-2">
             <input
               type="text"
-              value={material.unitPrice.toLocaleString()}
+              value={material.unitPrice?.toLocaleString() || ''}
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                        bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-left"
               readOnly
@@ -242,12 +235,11 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
             />
           </div>
 
-          {/* Total Price Display */}
           <div className="col-span-2">
             <div className="flex gap-2">
               <input
                 type="text"
-                value={material.totalPrice.toLocaleString()}
+                value={material.totalPrice?.toLocaleString() || ''}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-left"
                 readOnly
@@ -260,20 +252,20 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
                   ? 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
                   : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
-              title={material.note ? 'ویرایش یادداشت' : 'افزودن یادداشت'}
-            >
-              <MessageSquare className="h-5 w-5" />
-            </button>
-          </div>
-          {batchSize > 1 && material.totalPrice > 0 && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              هر واحد: {(material.totalPrice / batchSize).toLocaleString()} ریال
+                title={material.note ? 'ویرایش یادداشت' : 'افزودن یادداشت'}
+              >
+                <MessageSquare className="h-5 w-5" />
+              </button>
             </div>
-          )}
+            {batchSize > 1 && material.totalPrice > 0 && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                هر واحد: {(material.totalPrice / batchSize).toLocaleString()} ریال
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Unit Conversion Popup */}
       <UnitConversionPopup
         isOpen={showUnitConversion}
         onClose={() => setShowUnitConversion(false)}
@@ -282,7 +274,6 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
         availableUnits={units}
       />
 
-      {/* Note Input */}
       {showNoteInput && (
         <div className="pr-12 -mt-2">
           <textarea
@@ -295,16 +286,14 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
           />
         </div>
       )}
-    </div>
 
-    {/* Error Message */}
-    {error && (
-      <div className="mt-1 text-sm text-red-500">
-        {error}
-      </div>
-    )}
-  </div>
-);
+      {error && (
+        <div className="mt-1 text-sm text-red-500">
+          {error}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default MaterialRow;

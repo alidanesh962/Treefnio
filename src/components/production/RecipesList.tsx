@@ -1,9 +1,10 @@
 // src/components/inventory/RecipesList.tsx
 
 import React from 'react';
-import { Edit2, ClipboardList, Star, StarOff } from 'lucide-react';
+import { Edit2, ClipboardList, Star, StarOff, FileText } from 'lucide-react';
 import { ProductRecipe, Item, MaterialUnit } from '../../types';
 import { db } from '../../database';
+import { exportRecipesToPDF } from '../../utils/recipePDFExport';
 
 interface RecipesListProps {
   recipes: ProductRecipe[];
@@ -11,6 +12,7 @@ interface RecipesListProps {
   units: MaterialUnit[];
   onEdit: (recipe: ProductRecipe) => void;
   onSetActive: (recipe: ProductRecipe) => void;
+  onExportPDF?: (recipe: ProductRecipe) => Promise<void>;
 }
 
 export default function RecipesList({
@@ -18,11 +20,12 @@ export default function RecipesList({
   materials,
   units,
   onEdit,
-  onSetActive
+  onSetActive,
+  onExportPDF
 }: RecipesListProps) {
   const getMaterialName = (materialId: string): string => {
-    const material = materials.find(m => m.id === materialId);
-    return material?.name || 'Unknown Material';
+    const foundMaterial = materials.find(m => m.id === materialId);
+    return foundMaterial?.name || 'Unknown Material';
   };
 
   const getUnitSymbol = (unitId: string): string => {
@@ -32,6 +35,29 @@ export default function RecipesList({
 
   const calculateTotalCost = (recipe: ProductRecipe): number => {
     return recipe.materials.reduce((total, material) => total + material.totalPrice, 0);
+  };
+
+  const handleExportPDF = async (recipe: ProductRecipe) => {
+    if (onExportPDF) {
+      await onExportPDF(recipe);
+    } else {
+      try {
+        const product = db.getProductDefinition(recipe.productId);
+        if (!product) {
+          console.error('Product not found');
+          return;
+        }
+
+        await exportRecipesToPDF({
+          recipes: [recipe],
+          materials,
+          units,
+          product
+        });
+      } catch (error) {
+        console.error('Error exporting PDF:', error);
+      }
+    }
   };
 
   return (
@@ -45,7 +71,6 @@ export default function RecipesList({
         >
           <div className="flex justify-between items-start mb-4">
             <div className="flex items-start gap-3">
-              {/* Recipe Status */}
               <button
                 onClick={() => onSetActive(recipe)}
                 className={`p-1.5 rounded-lg transition-colors ${
@@ -80,6 +105,14 @@ export default function RecipesList({
             </div>
             
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleExportPDF(recipe)}
+                className="p-2 text-green-500 hover:text-green-600 transition-colors
+                         bg-white dark:bg-gray-800 rounded-lg shadow-sm"
+                title="خروجی PDF"
+              >
+                <FileText className="h-5 w-5" />
+              </button>
               <button
                 onClick={() => onEdit(recipe)}
                 className="p-2 text-blue-500 hover:text-blue-600 transition-colors
