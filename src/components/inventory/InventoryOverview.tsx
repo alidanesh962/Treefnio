@@ -287,7 +287,7 @@ export default function InventoryOverview() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                بخش
+                گروه
               </label>
               <select
                 value={filters.department}
@@ -379,7 +379,7 @@ export default function InventoryOverview() {
                   <h3 className="font-medium text-gray-900 dark:text-white">{material.name}</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">کد: {material.code}</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    بخش: {material.department}
+                    گروه: {material.department}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     قیمت: {material.price.toLocaleString()} ریال

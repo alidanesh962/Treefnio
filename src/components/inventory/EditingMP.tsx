@@ -327,7 +327,7 @@ export default function EditingMP() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  بخش
+                  گروه
                 </label>
                 <input
                   type="text"
@@ -415,7 +415,7 @@ export default function EditingMP() {
               {[
                 { key: 'name' as const, label: 'نام' },
                 { key: 'code' as const, label: 'کد' },
-                { key: 'department' as const, label: 'بخش' },
+                { key: 'department' as const, label: 'گروه' },
                 { key: 'unit' as const, label: 'واحد' },
                 { key: 'price' as const, label: 'قیمت' }
               ].map(column => (

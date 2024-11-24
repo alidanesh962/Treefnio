@@ -347,7 +347,7 @@ const PERSIAN_CHAR_REPLACEMENTS: { [key: string]: string } = {
     const patterns = {
       name: [/^نام$/i, /^name$/i, /^title$/i, /^نام.*کالا$/i, /^نام.*متریال$/i],
       code: [/^کد$/i, /^code$/i, /^id$/i, /^شناسه$/i, /^کد.*کالا$/i],
-      department: [/^بخش$/i, /^بخش.*کالا$/i, /^department$/i],
+      department: [/^گروه$/i, /^گروه.*کالا$/i, /^department$/i],
       unit: [/^واحد.*اندازه.*گیری$/i, /^واحد$/i, /^unit$/i, /^measure$/i],
       price: [/^قیمت$/i, /^price$/i, /^cost$/i, /^مبلغ$/i, /^ارزش$/i]
     };
@@ -531,7 +531,7 @@ const PERSIAN_CHAR_REPLACEMENTS: { [key: string]: string } = {
         {[
           { key: 'name' as const, label: 'نام', example: 'نام کالا، Name', required: true },
           { key: 'code' as const, label: 'کد', example: 'کد کالا، Code', required: true },
-          { key: 'department' as const, label: 'بخش', example: 'بخش، Department', required: false },
+          { key: 'department' as const, label: 'گروه', example: 'گروه Department', required: false },
           { key: 'unit' as const, label: 'واحد اندازه‌گیری', example: 'واحد، Unit', required: false },
           { key: 'price' as const, label: 'قیمت', example: 'قیمت، Price', required: false }
         ].map((field) => (
@@ -672,7 +672,7 @@ const PERSIAN_CHAR_REPLACEMENTS: { [key: string]: string } = {
                 کد
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                بخش
+                گروه
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 واحد

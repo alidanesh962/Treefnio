@@ -66,7 +66,7 @@ export default function MaterialManagement() {
       newErrors.code = 'کد ماده اولیه الزامی است';
     }
     if (!formData.department) {
-      newErrors.department = 'انتخاب بخش الزامی است';
+      newErrors.department = 'انتخاب گروه الزامی است';
     }
     if (formData.price <= 0) {
       newErrors.price = 'قیمت باید بزرگتر از صفر باشد';
@@ -179,7 +179,7 @@ export default function MaterialManagement() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                بخش
+                گروه
               </label>
               <select
                 value={formData.department}
@@ -190,7 +190,7 @@ export default function MaterialManagement() {
                     : 'border-gray-300 dark:border-gray-600'
                 } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
               >
-                <option value="">انتخاب بخش...</option>
+                <option value="">انتخاب گروه...</option>
                 {departments.map(dept => (
                   <option key={dept} value={dept}>{dept}</option>
                 ))}
@@ -255,7 +255,7 @@ export default function MaterialManagement() {
                 کد
               </th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                بخش
+                گروه
               </th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 قیمت (ریال)
