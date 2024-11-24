@@ -7,6 +7,7 @@
     "npm": ">=8.0.0"
   },
   "dependencies": {
+    "@hassanmojab/react-modern-calendar-datepicker": "^3.1.7",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -18,7 +19,7 @@
     "autoprefixer": "^10.4.20",
     "lodash": "^4.17.21",
     "lucide-react": "^0.454.0",
-    "moment-jalaali": "^0.10.1",
+    "moment-jalaali": "^0.10.4",
     "papaparse": "^5.4.1",
     "postcss": "^8.4.47",
     "react": "^18.3.1",
