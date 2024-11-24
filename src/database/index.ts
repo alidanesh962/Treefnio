@@ -20,7 +20,9 @@ const PRODUCT_DEFINITIONS_KEY = 'restaurant_product_definitions';
 const PRODUCT_RECIPES_KEY = 'restaurant_product_recipes';
 const MATERIAL_UNITS_KEY = 'restaurant_material_units';
 const PRODUCTION_BATCHES_KEY = 'restaurant_production_batches';
+
 class Database {
+  [x: string]: any;
   // Products Operations
   getProducts(): Item[] {
     const stored = localStorage.getItem(PRODUCTS_KEY);
@@ -193,48 +195,6 @@ class Database {
       m.id !== excludeId
     );
   }
-  // Recipe Operations
-  getRecipes(): Recipe[] {
-    const stored = localStorage.getItem(RECIPES_KEY);
-    return stored ? JSON.parse(stored) : [];
-  }
-
-  addRecipe(recipe: Omit<Recipe, 'id'>): Recipe {
-    const recipes = this.getRecipes();
-    const newRecipe: Recipe = {
-      ...recipe,
-      id: Date.now().toString(),
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    recipes.push(newRecipe);
-    localStorage.setItem(RECIPES_KEY, JSON.stringify(recipes));
-    return newRecipe;
-  }
-
-  updateRecipe(recipe: Recipe): boolean {
-    const recipes = this.getRecipes();
-    const index = recipes.findIndex(r => r.id === recipe.id);
-    if (index !== -1) {
-      recipes[index] = {
-        ...recipe,
-        updatedAt: Date.now()
-      };
-      localStorage.setItem(RECIPES_KEY, JSON.stringify(recipes));
-      return true;
-    }
-    return false;
-  }
-
-  deleteRecipe(id: string): boolean {
-    const recipes = this.getRecipes();
-    const filteredRecipes = recipes.filter(r => r.id !== id);
-    if (filteredRecipes.length < recipes.length) {
-      localStorage.setItem(RECIPES_KEY, JSON.stringify(filteredRecipes));
-      return true;
-    }
-    return false;
-  }
   // Product Recipe Operations
   getProductRecipes(productId?: string): ProductRecipe[] {
     const stored = localStorage.getItem(PRODUCT_RECIPES_KEY);
@@ -248,16 +208,22 @@ class Database {
     return this.getProductRecipes().find(r => r.id === id);
   }
 
+  getActiveRecipe(productId: string): ProductRecipe | undefined {
+    const recipes = this.getProductRecipes(productId);
+    return recipes.find(recipe => recipe.isActive);
+  }
+
   saveProductRecipes(recipes: ProductRecipe[]): void {
     localStorage.setItem(PRODUCT_RECIPES_KEY, JSON.stringify(recipes));
   }
 
-  addProductRecipe(recipe: Omit<ProductRecipe, 'id' | 'createdAt' | 'updatedAt'>): ProductRecipe {
+  addProductRecipe(recipe: Omit<ProductRecipe, 'id' | 'createdAt' | 'updatedAt' | 'isActive'>): ProductRecipe {
     const recipes = this.getProductRecipes();
     const now = Date.now();
     const newRecipe: ProductRecipe = {
       ...recipe,
       id: now.toString(),
+      isActive: false, // New recipes are not active by default
       createdAt: now,
       updatedAt: now
     };
@@ -266,28 +232,83 @@ class Database {
     return newRecipe;
   }
 
+  setActiveRecipe(productId: string, recipeId: string): boolean {
+    const recipes = this.getProductRecipes();
+    const productRecipes = recipes.filter(r => r.productId === productId);
+
+    // First, set all recipes for this product to inactive
+    const updatedRecipes = recipes.map(recipe => 
+      recipe.productId === productId 
+        ? { ...recipe, isActive: false }
+        : recipe
+    );
+
+    // Then set the selected recipe to active
+    const recipeIndex = updatedRecipes.findIndex(r => r.id === recipeId);
+    if (recipeIndex === -1) return false;
+
+    updatedRecipes[recipeIndex] = {
+      ...updatedRecipes[recipeIndex],
+      isActive: true,
+      updatedAt: Date.now()
+    };
+
+    this.saveProductRecipes(updatedRecipes);
+    return true;
+  }
+
   updateProductRecipe(recipe: ProductRecipe): boolean {
     const recipes = this.getProductRecipes();
     const index = recipes.findIndex(r => r.id === recipe.id);
-    if (index !== -1) {
-      recipes[index] = {
-        ...recipe,
-        updatedAt: Date.now()
-      };
-      this.saveProductRecipes(recipes);
-      return true;
+    if (index === -1) return false;
+
+    // If marking as active, deactivate other recipes for this product
+    if (recipe.isActive) {
+      recipes.forEach((r, i) => {
+        if (r.productId === recipe.productId && r.id !== recipe.id) {
+          recipes[i] = { ...r, isActive: false };
+        }
+      });
     }
-    return false;
+
+    recipes[index] = {
+      ...recipe,
+      updatedAt: Date.now()
+    };
+    
+    this.saveProductRecipes(recipes);
+    return true;
   }
 
   deleteProductRecipe(id: string): boolean {
     const recipes = this.getProductRecipes();
+    const recipeToDelete = recipes.find(r => r.id === id);
+    
+    if (!recipeToDelete) return false;
+
     const filteredRecipes = recipes.filter(r => r.id !== id);
-    if (filteredRecipes.length < recipes.length) {
-      this.saveProductRecipes(filteredRecipes);
-      return true;
+    
+    // If deleting the active recipe and there are other recipes for this product,
+    // make the most recently updated one active
+    if (recipeToDelete.isActive) {
+      const productRecipes = filteredRecipes
+        .filter(r => r.productId === recipeToDelete.productId)
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+      
+      if (productRecipes.length > 0) {
+        const newActiveIndex = filteredRecipes.findIndex(r => r.id === productRecipes[0].id);
+        if (newActiveIndex !== -1) {
+          filteredRecipes[newActiveIndex] = {
+            ...filteredRecipes[newActiveIndex],
+            isActive: true,
+            updatedAt: Date.now()
+          };
+        }
+      }
     }
-    return false;
+    
+    this.saveProductRecipes(filteredRecipes);
+    return true;
   }
 
   deleteProductRecipes(productId: string): void {
@@ -336,7 +357,6 @@ class Database {
     }
     return false;
   }
-
   deleteProductDefinition(id: string): boolean {
     const products = this.getProductDefinitions();
     const filteredProducts = products.filter(p => p.id !== id);
@@ -356,7 +376,9 @@ class Database {
       product.saleDepartment &&
       product.productionSegment
     );
-  }// Department Operations
+  }
+
+  // Department Operations
   getDepartments(): Department[] {
     const stored = localStorage.getItem(DEPARTMENTS_KEY);
     return stored ? JSON.parse(stored) : [];
@@ -535,6 +557,7 @@ class Database {
     }
     return false;
   }
+
   // Validation Operations
   validateAll(): { 
     isValid: boolean, 

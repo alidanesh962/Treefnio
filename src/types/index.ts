@@ -10,7 +10,6 @@ export interface Item {
   price: number;
   type: 'product' | 'material';
 }
-
 export interface RecipeMaterial {
   [x: string]: any;
   materialId: string;
@@ -32,6 +31,7 @@ export interface ProductRecipe {
   name: string;
   materials: RecipeMaterial[];
   notes?: string;
+  isActive: boolean;  // Added this field
   createdAt: number;
   updatedAt: number;
 }

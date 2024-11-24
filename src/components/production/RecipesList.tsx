@@ -1,5 +1,7 @@
+// src/components/inventory/RecipesList.tsx
+
 import React from 'react';
-import { Edit2, ClipboardList, MessageSquare } from 'lucide-react';
+import { Edit2, ClipboardList, Star, StarOff } from 'lucide-react';
 import { ProductRecipe, Item, MaterialUnit } from '../../types';
 import { db } from '../../database';
 
@@ -8,13 +10,15 @@ interface RecipesListProps {
   materials: Item[];
   units: MaterialUnit[];
   onEdit: (recipe: ProductRecipe) => void;
+  onSetActive: (recipe: ProductRecipe) => void;
 }
 
 export default function RecipesList({
   recipes,
   materials,
   units,
-  onEdit
+  onEdit,
+  onSetActive
 }: RecipesListProps) {
   const getMaterialName = (materialId: string): string => {
     const material = materials.find(m => m.id === materialId);
@@ -35,20 +39,46 @@ export default function RecipesList({
       {recipes.map(recipe => (
         <div 
           key={recipe.id}
-          className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-6
-                   border border-gray-200/50 dark:border-gray-600/50"
+          className={`bg-gray-50 dark:bg-gray-700/50 rounded-lg p-6
+                   border border-gray-200/50 dark:border-gray-600/50
+                   ${recipe.isActive ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''}`}
         >
           <div className="flex justify-between items-start mb-4">
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 dark:text-white">
-                {recipe.name}
-              </h4>
-              {recipe.notes && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {recipe.notes}
-                </p>
-              )}
+            <div className="flex items-start gap-3">
+              {/* Recipe Status */}
+              <button
+                onClick={() => onSetActive(recipe)}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  recipe.isActive
+                    ? 'text-yellow-500 hover:text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'
+                    : 'text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600'
+                }`}
+                title={recipe.isActive ? 'دستور پخت فعال' : 'تنظیم به عنوان دستور پخت فعال'}
+              >
+                {recipe.isActive ? (
+                  <Star className="h-5 w-5 fill-current" />
+                ) : (
+                  <StarOff className="h-5 w-5" />
+                )}
+              </button>
+              
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                  {recipe.name}
+                  {recipe.isActive && (
+                    <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded-full">
+                      فعال
+                    </span>
+                  )}
+                </h4>
+                {recipe.notes && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {recipe.notes}
+                  </p>
+                )}
+              </div>
             </div>
+            
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onEdit(recipe)}
@@ -79,39 +109,24 @@ export default function RecipesList({
                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       قیمت کل
                     </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      یادداشت
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {recipe.materials.map((material, index) => (
-                    <React.Fragment key={index}>
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {getMaterialName(material.materialId)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {material.amount} {getUnitSymbol(material.unit)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {material.unitPrice.toLocaleString()} ریال
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {material.totalPrice.toLocaleString()} ریال
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                          {material.note ? (
-                            <div className="flex items-start gap-2">
-                              <MessageSquare className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                              <span className="text-gray-600 dark:text-gray-400">
-                                {material.note}
-                              </span>
-                            </div>
-                          ) : null}
-                        </td>
-                      </tr>
-                    </React.Fragment>
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {getMaterialName(material.materialId)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {material.amount} {getUnitSymbol(material.unit)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {material.unitPrice.toLocaleString()} ریال
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {material.totalPrice.toLocaleString()} ریال
+                      </td>
+                    </tr>
                   ))}
                   <tr className="bg-gray-50 dark:bg-gray-700">
                     <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white text-left">
@@ -120,7 +135,6 @@ export default function RecipesList({
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                       {calculateTotalCost(recipe).toLocaleString()} ریال
                     </td>
-                    <td></td>
                   </tr>
                 </tbody>
               </table>
