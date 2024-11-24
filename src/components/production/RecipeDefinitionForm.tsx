@@ -4,8 +4,9 @@ import {
   Plus, 
   Save, 
   Trash2, 
-  Star, 
-  AlertCircle 
+  Star,
+  AlertCircle,
+  Calculator 
 } from 'lucide-react';
 import { db } from '../../database';
 import { 
@@ -30,6 +31,7 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
   const [units, setUnits] = useState<MaterialUnit[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<ProductRecipe | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [batchSize, setBatchSize] = useState(1); // New state for batch size
 
   const [formData, setFormData] = useState({
     name: '',
@@ -57,17 +59,14 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
       notes: '',
       isActive: false
     });
+    setBatchSize(1);
     setErrors({});
     setSelectedRecipe(null);
   };
 
   const handleSetActive = (recipe: ProductRecipe) => {
-    if (recipe.isActive) return; // Already active
-
-    // Update in database
+    if (recipe.isActive) return;
     db.setActiveRecipe(product.id, recipe.id);
-    
-    // Update local state
     setRecipes(prevRecipes => 
       prevRecipes.map(r => ({
         ...r,
@@ -75,7 +74,6 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
       }))
     );
   };
-
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -85,6 +83,10 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
 
     if (formData.materials.length === 0) {
       newErrors.materials = 'حداقل یک ماده اولیه باید وارد شود';
+    }
+
+    if (batchSize <= 0) {
+      newErrors.batchSize = 'تعداد محصول باید بزرگتر از صفر باشد';
     }
 
     formData.materials.forEach((material, index) => {
@@ -100,19 +102,29 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
     return Object.keys(newErrors).length === 0;
   };
 
+  const calculateSingleUnitAmounts = (materials: RecipeMaterial[]): RecipeMaterial[] => {
+    return materials.map(material => ({
+      ...material,
+      amount: material.amount / batchSize,
+      totalPrice: (material.amount / batchSize) * material.unitPrice
+    }));
+  };
+
   const handleSubmit = () => {
     if (!validate()) return;
+
+    // Calculate amounts for single unit
+    const singleUnitMaterials = calculateSingleUnitAmounts(formData.materials);
 
     const recipeData: Omit<ProductRecipe, 'id' | 'createdAt' | 'updatedAt'> = {
       productId: product.id,
       name: formData.name,
-      materials: formData.materials,
+      materials: singleUnitMaterials,
       notes: formData.notes || undefined,
       isActive: formData.isActive
     };
 
     if (selectedRecipe) {
-      // For updates, maintain current active status unless explicitly changed
       db.updateProductRecipe({
         ...selectedRecipe,
         ...recipeData,
@@ -120,7 +132,6 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
         updatedAt: Date.now()
       });
     } else {
-      // For new recipes, if setting as active, handle in database
       const newRecipe = db.addProductRecipe(recipeData);
       if (formData.isActive) {
         db.setActiveRecipe(product.id, newRecipe.id);
@@ -148,6 +159,7 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
     };
     setFormData(prev => ({ ...prev, materials: updatedMaterials }));
   };
+
   const handleAddMaterial = () => {
     if (materials.length === 0) return;
 
@@ -172,29 +184,60 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
       materials: prev.materials.filter((_, i) => i !== index)
     }));
   };
-
   return (
     <div className="space-y-6">
       {/* Recipe Form */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              نام دستور پخت
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className={`w-full px-3 py-2 rounded-lg border ${
-                errors.name 
-                  ? 'border-red-300 dark:border-red-600' 
-                  : 'border-gray-300 dark:border-gray-600'
-              } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
-            />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-500">{errors.name}</p>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                نام دستور پخت
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className={`w-full px-3 py-2 rounded-lg border ${
+                  errors.name 
+                    ? 'border-red-300 dark:border-red-600' 
+                    : 'border-gray-300 dark:border-gray-600'
+                } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
+              />
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+              )}
+            </div>
+
+            {/* Batch Size Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                تعداد محصول برای محاسبه مواد
+              </label>
+              <div className="flex gap-2 items-start">
+                <input
+                  type="number"
+                  value={batchSize}
+                  onChange={(e) => setBatchSize(Math.max(1, parseFloat(e.target.value) || 1))}
+                  className={`w-full px-3 py-2 rounded-lg border ${
+                    errors.batchSize 
+                      ? 'border-red-300 dark:border-red-600' 
+                      : 'border-gray-300 dark:border-gray-600'
+                  } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
+                  min="1"
+                  step="1"
+                />
+                <div className="flex flex-col justify-center">
+                  <Calculator className="h-5 w-5 text-gray-400" />
+                </div>
+              </div>
+              {errors.batchSize && (
+                <p className="mt-1 text-sm text-red-500">{errors.batchSize}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                مقادیر مواد اولیه برای این تعداد محصول محاسبه می‌شود و سپس برای یک واحد ذخیره می‌شود
+              </p>
+            </div>
           </div>
 
           {/* Active Recipe Toggle */}
@@ -257,7 +300,6 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
               ))}
             </div>
           </div>
-
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -272,9 +314,8 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
               placeholder="توضیحات اضافی..."
             />
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-4">
+{/* Action Buttons */}
+<div className="flex justify-end gap-4">
             {selectedRecipe && (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
@@ -314,6 +355,8 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
                 notes: recipe.notes || '',
                 isActive: recipe.isActive
               });
+              // Set batch size to 1 when editing existing recipe
+              setBatchSize(1);
             }}
             onSetActive={handleSetActive}
           />
