@@ -69,13 +69,6 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
     loadDepartments();
   }, []);
 
-  const loadDepartments = () => {
-    const saleDepts = db.getDepartmentsByType('sale');
-    const prodDepts = db.getDepartmentsByType('production');
-    setSaleDepartments(saleDepts.map(d => d.id));
-    setProductionDepartments(prodDepts.map(d => d.id));
-  };
-
   const loadProducts = async () => {
     try {
       setIsLoading(true);
@@ -109,6 +102,13 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
       setIsLoading(false);
     }
   };
+  const loadDepartments = () => {
+    const saleDepts = db.getDepartmentsByType('sale');
+    const prodDepts = db.getDepartmentsByType('production');
+    setSaleDepartments(saleDepts.map(d => d.id));
+    setProductionDepartments(prodDepts.map(d => d.id));
+  };
+
   const handleDefinitionSuccess = () => {
     loadProducts();
     setShowDefinitionForm(false);
@@ -132,6 +132,24 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
     setSearchQuery('');
   };
 
+  const getDepartmentName = (id: string, type: 'sale' | 'production'): string => {
+    try {
+      const department = db.getDepartmentsByType(type).find(d => d.id === id);
+      return department?.name || 'نامشخص';
+    } catch (err) {
+      console.error(`Error getting ${type} department name:`, err);
+      return 'خطا';
+    }
+  };
+
+  const getRecipeCount = (productId: string): number => {
+    try {
+      return db.getProductRecipes(productId).length;
+    } catch (err) {
+      console.error('Error getting recipe count:', err);
+      return 0;
+    }
+  };
   const filteredAndSortedProducts = React.useMemo(() => {
     let result = [...products];
 
@@ -195,25 +213,6 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
 
     return result;
   }, [products, searchQuery, filters, sortConfig]);
-
-  const getDepartmentName = (id: string, type: 'sale' | 'production'): string => {
-    try {
-      const department = db.getDepartmentsByType(type).find(d => d.id === id);
-      return department?.name || 'نامشخص';
-    } catch (err) {
-      console.error(`Error getting ${type} department name:`, err);
-      return 'خطا';
-    }
-  };
-
-  const getRecipeCount = (productId: string): number => {
-    try {
-      return db.getProductRecipes(productId).length;
-    } catch (err) {
-      console.error('Error getting recipe count:', err);
-      return 0;
-    }
-  };
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -225,9 +224,9 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header with Add Button */}
+      {/* Header Section */}
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
           لیست محصولات
         </h2>
         <button
@@ -264,7 +263,10 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
             <Filter className="h-4 w-4" />
             {showAdvancedFilters ? 'مخفی کردن فیلترها' : 'نمایش فیلترهای پیشرفته'}
           </button>
-          {(showAdvancedFilters || searchQuery || Object.values(filters).some(v => v !== '')) && (
+          {(Object.values(filters).some(value => 
+            value !== '' && value !== null && value !== 'all') ||
+            searchQuery
+          ) && (
             <button
               onClick={clearFilters}
               className="text-gray-500 hover:text-gray-600 flex items-center gap-1"
@@ -274,228 +276,100 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
             </button>
           )}
         </div>
-        {/* Advanced Filters */}
-        {showAdvancedFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                نام محصول
-              </label>
-              <input
-                type="text"
-                value={filters.name}
-                onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                کد محصول
-              </label>
-              <input
-                type="text"
-                value={filters.code}
-                onChange={(e) => setFilters(prev => ({ ...prev, code: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                واحد فروش
-              </label>
-              <select
-                value={filters.saleDepartment}
-                onChange={(e) => setFilters(prev => ({ ...prev, saleDepartment: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+      </div>
+      {/* Products Grid - Fixed width container */}
+      <div className="w-full">
+        {filteredAndSortedProducts.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-full">
+            {filteredAndSortedProducts.map(product => (
+              <div 
+                key={product.id}
+                className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm
+                        border border-gray-200/50 dark:border-gray-700/50
+                        hover:shadow-md transition-all duration-200"
               >
-                <option value="">همه</option>
-                {saleDepartments.map(dept => (
-                  <option key={dept} value={dept}>
-                    {getDepartmentName(dept, 'sale')}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                      {product.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      کد: {product.code}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onProductSelect(product)}
+                      className="p-1.5 text-blue-500 hover:text-blue-600 transition-colors"
+                      title="مدیریت دستور پخت"
+                    >
+                      <BookOpen className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm({
+                        isOpen: true,
+                        productId: product.id,
+                        productName: product.name
+                      })}
+                      className="p-1.5 text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                واحد تولید
-              </label>
-              <select
-                value={filters.productionSegment}
-                onChange={(e) => setFilters(prev => ({ ...prev, productionSegment: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="">همه</option>
-                {productionDepartments.map(dept => (
-                  <option key={dept} value={dept}>
-                    {getDepartmentName(dept, 'production')}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      واحد فروش:
+                    </span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {getDepartmentName(product.saleDepartment, 'sale')}
+                    </span>
+                  </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                وضعیت دستور پخت
-              </label>
-              <select
-                value={filters.hasRecipe}
-                onChange={(e) => setFilters(prev => ({ 
-                  ...prev, 
-                  hasRecipe: e.target.value as 'all' | 'yes' | 'no'
-                }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="all">همه</option>
-                <option value="yes">دارای دستور پخت</option>
-                <option value="no">بدون دستور پخت</option>
-              </select>
-            </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      واحد تولید:
+                    </span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {getDepartmentName(product.productionSegment, 'production')}
+                    </span>
+                  </div>
 
-            <div className="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  تاریخ ایجاد از
-                </label>
-                <input
-                  type="date"
-                  value={filters.createdDateFrom}
-                  onChange={(e) => setFilters(prev => ({ ...prev, createdDateFrom: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      تعداد دستور پخت:
+                    </span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {getRecipeCount(product.id)}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onProductSelect(product)}
+                  className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 
+                         bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 
+                         rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                >
+                  مدیریت دستور پخت
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  تاریخ ایجاد تا
-                </label>
-                <input
-                  type="date"
-                  value={filters.createdDateTo}
-                  onChange={(e) => setFilters(prev => ({ ...prev, createdDateTo: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="flex flex-col items-center justify-center">
+              <Package className="h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-gray-500 dark:text-gray-400">
+                موردی یافت نشد
+              </p>
             </div>
           </div>
         )}
       </div>
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 
-                      rounded-lg p-4 flex items-center gap-2 text-red-600 dark:text-red-400">
-          <AlertCircle className="h-5 w-5 flex-shrink-0" />
-          <p>{error}</p>
-        </div>
-      )}
-
-      {/* Products Grid */}
-      {filteredAndSortedProducts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedProducts.map(product => (
-            <div 
-              key={product.id}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm
-                      border border-gray-200/50 dark:border-gray-700/50
-                      hover:shadow-md transition-all duration-200"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    {product.name}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    کد: {product.code}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => onProductSelect(product)}
-                    className="p-1.5 text-blue-500 hover:text-blue-600 transition-colors"
-                    title="مدیریت دستور پخت"
-                  >
-                    <BookOpen className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirm({
-                      isOpen: true,
-                      productId: product.id,
-                      productName: product.name
-                    })}
-                    className="p-1.5 text-red-500 hover:text-red-600 transition-colors"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    واحد فروش:
-                  </span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {getDepartmentName(product.saleDepartment, 'sale')}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    واحد تولید:
-                  </span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {getDepartmentName(product.productionSegment, 'production')}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    تعداد دستور پخت:
-                  </span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {getRecipeCount(product.id)}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => onProductSelect(product)}
-                className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 
-                         bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 
-                         rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-              >
-                مدیریت دستور پخت
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <div className="flex flex-col items-center justify-center">
-            <Package className="h-12 w-12 text-gray-400 mb-4" />
-            {searchQuery || Object.values(filters).some(v => v !== '') ? (
-              <p className="text-gray-500 dark:text-gray-400">
-                محصولی با این مشخصات یافت نشد
-              </p>
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400">
-                هنوز محصولی تعریف نشده است
-              </p>
-            )}
-          </div>
-        </div>
-      )}
       {/* Product Definition Form Dialog */}
       {showDefinitionForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

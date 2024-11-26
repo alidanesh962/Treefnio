@@ -1,8 +1,9 @@
 // src/components/production/MaterialRow.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Trash2, Search, ChevronDown, ChevronUp, MessageSquare, Calculator } from 'lucide-react';
+import { Trash2, Search, ChevronDown, ChevronUp, MessageSquare, Calculator, Plus } from 'lucide-react';
 import type { MaterialUnit, RecipeMaterial, Item } from '../../types';
 import UnitConversionPopup from './UnitConversionPopup';
+import AddUnitDialog from './AddUnitDialog';
 
 interface MaterialRowProps {
   material: RecipeMaterial;
@@ -31,6 +32,7 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showUnitConversion, setShowUnitConversion] = useState(false);
+  const [showAddUnit, setShowAddUnit] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,7 +48,6 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
   const handleQuantityChange = (value: number) => {
     const selectedMaterial = materials.find(m => m.id === material.materialId);
     if (selectedMaterial) {
@@ -74,6 +75,10 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
     setSearchQuery('');
   };
 
+  const handleUnitChange = (unitId: string) => {
+    onChange(index, { unit: unitId });
+  };
+
   const handleNoteChange = (note: string) => {
     onChange(index, { note });
   };
@@ -82,14 +87,17 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
     handleQuantityChange(amount);
   };
 
+  const handleNewUnitAdded = (unitId: string) => {
+    handleUnitChange(unitId);
+  };
+
   const filteredMaterials = materials.filter(m =>
     m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     m.code.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const selectedMaterial = materials.find(m => m.id === material.materialId);
-  const selectedUnit = units.find(u => u.id === (selectedMaterial?.unit || material.unit));
-
+  const selectedUnit = units.find(u => u.id === material.unit);
   return (
     <div>
       {showHeader && (
@@ -152,12 +160,11 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
                       className="w-full pl-8 pr-3 py-1.5 rounded-md border border-gray-300 
                                dark:border-gray-600 bg-gray-50 dark:bg-gray-700 
                                text-gray-900 dark:text-white text-sm"
-                      placeholder="    جستجو..."
+                      placeholder="جستجو..."
                     />
                     <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   </div>
                 </div>
-
                 <div className="mt-1">
                   {filteredMaterials.map((mat) => (
                     <button
@@ -217,13 +224,32 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
             </div>
           </div>
 
+          {/* Unit Selection with Add New Unit Button */}
           <div className="col-span-2">
-            <div className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                          bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-sm">
-              {selectedUnit ? `${selectedUnit.name} (${selectedUnit.symbol})` : '-'}
+            <div className="flex gap-2">
+              <select
+                value={material.unit || ''}
+                onChange={(e) => handleUnitChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">انتخاب واحد...</option>
+                {units.map(unit => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.name} ({unit.symbol})
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowAddUnit(true)}
+                className="p-2 text-blue-500 hover:text-blue-600 transition-colors
+                         hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+                title="افزودن واحد جدید"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
             </div>
           </div>
-
           <div className="col-span-2">
             <input
               type="text"
@@ -266,12 +292,20 @@ const MaterialRow: React.FC<MaterialRowProps> = ({
         </div>
       </div>
 
+      {/* Unit Conversion Dialog */}
       <UnitConversionPopup
         isOpen={showUnitConversion}
         onClose={() => setShowUnitConversion(false)}
         onConvert={handleConvertedAmount}
         targetUnit={selectedUnit}
         availableUnits={units}
+      />
+
+      {/* Add New Unit Dialog */}
+      <AddUnitDialog
+        isOpen={showAddUnit}
+        onClose={() => setShowAddUnit(false)}
+        onConfirm={handleNewUnitAdded}
       />
 
       {showNoteInput && (
