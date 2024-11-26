@@ -3,14 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, Menu, X, Package, ChevronLeft, 
-  Edit3, BookOpen
+  Edit3
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
 import InventoryOverview from '../components/inventory/InventoryOverview';
 import EditingMP from '../components/inventory/EditingMP';
-import Recipes from '../components/inventory/Recipes';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { CurrentUser } from '../types';
 
@@ -92,18 +91,6 @@ export default function InventoryManagement() {
             ویرایش متریال
             <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
-
-          <button
-            onClick={() => setActiveMenu('recipes')}
-            className={`flex items-center w-full px-4 py-2 text-right
-                      ${activeMenu === 'recipes' 
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-          >
-            <BookOpen className="h-5 w-5 ml-2" />
-            مدیریت رسپی
-            <ChevronLeft className="h-4 w-4 mr-auto" />
-          </button>
         </nav>
       </div>
 
@@ -141,7 +128,6 @@ export default function InventoryManagement() {
         <main className="p-8">
           {activeMenu === 'inventory-overview' && <InventoryOverview />}
           {activeMenu === 'editing-mp' && <EditingMP />}
-          {activeMenu === 'recipes' && <Recipes />}
         </main>
       </div>
 
