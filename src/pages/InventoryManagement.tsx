@@ -1,9 +1,16 @@
-// src/pages/InventoryManagement.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Menu, X, Package, ChevronLeft, 
-  Edit3
+  LogOut, 
+  Menu, 
+  X, 
+  Package, 
+  ChevronLeft,
+  ArrowRightLeft,
+  ArrowDown,
+  ArrowUp,
+  Edit3,
+  BarChart2
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
@@ -17,7 +24,7 @@ export default function InventoryManagement() {
   const navigate = useNavigate();
   const [currentUser] = useState<CurrentUser | null>(getCurrentUser());
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const [activeMenu, setActiveMenu] = useState('inventory-overview');
+  const [activeMenu, setActiveMenu] = useState('live-inventory');
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
@@ -48,6 +55,59 @@ export default function InventoryManagement() {
     return null;
   }
 
+  const menuItems = [
+    {
+      id: 'live-inventory',
+      label: 'موجودی لحظه‌ای',
+      icon: Package
+    },
+    {
+      id: 'incoming',
+      label: 'ثبت ورودی',
+      icon: ArrowDown
+    },
+    {
+      id: 'outgoing',
+      label: 'ثبت خروجی',
+      icon: ArrowUp
+    },
+    {
+      id: 'materials-edit',
+      label: 'ویرایش مواد اولیه',
+      icon: Edit3
+    },
+    {
+      id: 'reports',
+      label: 'گزارشات',
+      icon: BarChart2
+    }
+  ];
+
+  const getMenuContent = () => {
+    switch (activeMenu) {
+      case 'live-inventory':
+        return <InventoryOverview />;
+      case 'materials-edit':
+        return <EditingMP />;
+      // We'll implement these components later
+      case 'incoming':
+      case 'outgoing':
+      case 'reports':
+        return (
+          <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+              {menuItems.find(item => item.id === activeMenu)?.label}
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              این بخش در حال توسعه است...
+            </p>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       {/* Sidebar */}
@@ -68,29 +128,20 @@ export default function InventoryManagement() {
         </div>
         
         <nav className="mt-4">
-          <button
-            onClick={() => setActiveMenu('inventory-overview')}
-            className={`flex items-center w-full px-4 py-2 text-right
-                      ${activeMenu === 'inventory-overview' 
+          {menuItems.map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveMenu(item.id)}
+              className={`flex items-center w-full px-4 py-2 text-right
+                      ${activeMenu === item.id 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-          >
-            <Package className="h-5 w-5 ml-2" />
-            موجودی انبار
-            <ChevronLeft className="h-4 w-4 mr-auto" />
-          </button>
-
-          <button
-            onClick={() => setActiveMenu('editing-mp')}
-            className={`flex items-center w-full px-4 py-2 text-right
-                      ${activeMenu === 'editing-mp' 
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-          >
-            <Edit3 className="h-5 w-5 ml-2" />
-            ویرایش متریال
-            <ChevronLeft className="h-4 w-4 mr-auto" />
-          </button>
+            >
+              <item.icon className="h-5 w-5 ml-2" />
+              {item.label}
+              <ChevronLeft className="h-4 w-4 mr-auto" />
+            </button>
+          ))}
         </nav>
       </div>
 
@@ -126,8 +177,7 @@ export default function InventoryManagement() {
 
         {/* Main Content */}
         <main className="p-8">
-          {activeMenu === 'inventory-overview' && <InventoryOverview />}
-          {activeMenu === 'editing-mp' && <EditingMP />}
+          {getMenuContent()}
         </main>
       </div>
 
