@@ -167,7 +167,8 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
       unit: units[0]?.id || '',
       amount: 0,
       unitPrice: 0,
-      totalPrice: 0
+      totalPrice: 0,
+      note: undefined
     };
 
     setFormData(prev => ({
