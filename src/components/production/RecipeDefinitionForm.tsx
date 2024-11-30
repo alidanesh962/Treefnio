@@ -381,6 +381,7 @@ export default function RecipeDefinitionForm({ product, onBack }: RecipeDefiniti
               setBatchSize(1);
             }}
             onSetActive={handleSetActive}
+            product={product}
             
           />
         </div>

@@ -41,3 +41,119 @@
 .transition-theme {
   @apply transition-all duration-200 ease-in-out;
 }
+
+/* PDF Generation Specific Styles */
+.pdf-container {
+  background-color: white;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Vazirmatn', sans-serif;
+  direction: rtl;
+}
+
+/* Recipe page specific styles */
+.recipe-page {
+  page-break-after: always;
+  page-break-inside: avoid;
+}
+
+/* Print media specific styles */
+@media print {
+  .pdf-container {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Ensure proper font rendering in PDF */
+  .pdf-container * {
+    font-family: 'Vazirmatn', sans-serif !important;
+  }
+  
+  /* Ensure proper text direction in PDF */
+  [dir="rtl"],
+  .pdf-container {
+    text-align: right;
+    direction: rtl;
+  }
+}
+
+/* PDF table styles */
+.pdf-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.pdf-table th,
+.pdf-table td {
+  border: 1px solid #e5e7eb;
+  padding: 0.75rem;
+  text-align: right;
+}
+
+.pdf-table th {
+  background-color: #f9fafb;
+  font-weight: 500;
+}
+
+/* Ensure numbers are properly aligned */
+.pdf-number {
+  font-family: 'Vazirmatn', sans-serif;
+  direction: ltr;
+  display: inline-block;
+}
+/* PDF Export Styles */
+@media print {
+  .pdf-container {
+    background: white;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 20mm;
+    margin: 0;
+    font-family: 'Vazirmatn', sans-serif !important;
+  }
+
+  .pdf-container * {
+    font-family: 'Vazirmatn', sans-serif !important;
+  }
+
+  .recipe-page {
+    page-break-after: always;
+    page-break-inside: avoid;
+    direction: rtl;
+    text-align: right;
+  }
+
+  .recipe-page:last-child {
+    page-break-after: auto;
+  }
+
+  .recipe-page table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+  }
+
+  .recipe-page table th,
+  .recipe-page table td {
+    border: 1px solid #e5e7eb;
+    padding: 0.75rem;
+    text-align: right;
+  }
+
+  .recipe-page table th {
+    background-color: #f9fafb;
+    font-weight: 500;
+  }
+
+  /* Ensure RTL for numbers */
+  .recipe-page .number {
+    direction: ltr;
+    display: inline-block;
+  }
+}

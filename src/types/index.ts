@@ -67,12 +67,12 @@ export interface Recipe {
 }
 
 export interface RecipeMaterial {
-  note: any;
   materialId: string;
   unit: string;
   amount: number;
   unitPrice: number;
   totalPrice: number;
+  note?: string;  // Added note field for material comments
 }
 
 export interface ProductRecipe {
