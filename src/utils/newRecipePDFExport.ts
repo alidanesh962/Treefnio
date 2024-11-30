@@ -16,22 +16,20 @@ export const exportRecipesToPDF = async (container: HTMLElement, options: PDFExp
 
     // Define PDF options
     const pdfOptions = {
-      margin: [15, 15, 15, 15],
+      margin: 10,
       filename: `recipe-${options.product.code}-${new Date().toISOString().split('T')[0]}.pdf`,
-      image: { type: 'jpeg', quality: 1 },
+      image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { 
-        scale: 2,
+        scale: 2, // Better resolution
         useCORS: true,
         scrollY: 0,
         scrollX: 0,
         letterRendering: true,
-        logging: true
       },
-      jsPDF: { 
-        unit: 'mm', 
-        format: 'a4', 
-        orientation: 'portrait',
-        compress: true
+      jsPDF: {
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait' as 'portrait' | 'landscape' // Fixed by explicitly typing orientation
       }
     };
 
