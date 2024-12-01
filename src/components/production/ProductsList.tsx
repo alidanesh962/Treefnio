@@ -255,7 +255,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
             ` : ''}
           </div>
 
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <table style="width: 90%; border-collapse: collapse; margin-bottom: 20px;">
             <thead>
               <tr style="background-color: #f3f4f6;">
                 <th style="padding: 10px; border: 1px solid #e5e7eb; text-align: right;">ماده اولیه</th>
@@ -284,7 +284,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
             </tbody>
           </table>
 
-          <div style="margin-top: 20px; text-align: left; font-size: 12px; color: #666;">
+          <div style="margin-top: 20px; text-align: right; font-size: 12px; color: #666;">
             <p>تاریخ چاپ: ${new Date().toLocaleDateString('fa-IR')}</p>
           </div>
         `;
