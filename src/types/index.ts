@@ -96,7 +96,20 @@ export interface ProductDefinition {
   createdAt: number;
   updatedAt: number;
 }
+export interface ExtendedProductDefinition extends ProductDefinition {
+  isActive: boolean;
+}
 
+// Make sure your existing ProductDefinition interface includes all necessary fields
+export interface ProductDefinition {
+  id: string;
+  name: string;
+  code: string;
+  saleDepartment: string;
+  productionSegment: string;
+  createdAt: number;
+  updatedAt: number;
+}
 export interface ProductionBatch {
   id: string;
   productId: string;
