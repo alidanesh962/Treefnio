@@ -9,7 +9,7 @@ import type {
   MaterialUnit,
   ProductionBatch,
   RecipeMaterial,
-  ExtendedProductDefinition
+  ExtendedProductDefinition // Make sure this is imported
 } from '../types';
 
 // Storage Keys
@@ -71,18 +71,19 @@ class Database {
     return false;
   }
   // Product Definitions Operations
-  getProductDefinitions(): ExtendedProductDefinition[] {
+  getProductDefinitions(): ExtendedProductDefinition[] { // Updated return type
     const stored = localStorage.getItem(PRODUCT_DEFINITIONS_KEY);
     const products: ProductDefinition[] = stored ? JSON.parse(stored) : [];
     const activeStatuses = this.getProductActiveStatuses();
     
+    // Now TypeScript knows isActive is valid
     return products.map((product) => ({
       ...product,
       isActive: activeStatuses[product.id] ?? true
     }));
   }
 
-  getProductDefinition(id: string): ExtendedProductDefinition | undefined {
+  getProductDefinition(id: string): ExtendedProductDefinition | undefined { // Updated return type
     const product = this.getProductDefinitions().find(p => p.id === id);
     if (!product) return undefined;
     
@@ -144,7 +145,7 @@ class Database {
     if (index !== -1) {
       // Update active status
       const statuses = this.getProductActiveStatuses();
-      statuses[product.id] = product.isActive;
+      statuses[product.id] = product.isActive ?? true;
       this.saveProductActiveStatuses(statuses);
 
       // Update base product definition

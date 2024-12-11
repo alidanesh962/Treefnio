@@ -1,8 +1,9 @@
 // src/pages/ProductionModule.tsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Menu, X, List, Plus, Edit3
+  LogOut, Menu, X, List, Edit3
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
@@ -12,7 +13,7 @@ import EditingProducts from '../components/production/EditingProducts';
 import RecipeDefinitionForm from '../components/production/RecipeDefinitionForm';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { db } from '../database';
-import { CurrentUser, ProductDefinition } from '../types';
+import { CurrentUser, ProductDefinition, ExtendedProductDefinition } from '../types'; // Updated import
 
 export default function ProductionModule() {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export default function ProductionModule() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [activeMenu, setActiveMenu] = useState('products-list');
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ProductDefinition | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductDefinition | null>(null); // Updated state
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
@@ -62,9 +63,18 @@ export default function ProductionModule() {
     setSidebarOpen(!isSidebarOpen);
   };
 
-  const handleProductSelected = (product: ProductDefinition) => {
-    console.log('Product selected:', product);
-    setSelectedProduct(product);
+  const handleProductSelected = (product: ExtendedProductDefinition) => { // Updated handler
+    const productDefinition: ProductDefinition = {
+      id: product.id,
+      name: product.name,
+      code: product.code,
+      saleDepartment: product.saleDepartment,
+      productionSegment: product.productionSegment,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt
+    };
+
+    setSelectedProduct(productDefinition);
     setActiveMenu('recipe-definition');
   };
 
@@ -73,14 +83,14 @@ export default function ProductionModule() {
       case 'products-list':
         return (
           <ProductsList 
-            onProductSelect={handleProductSelected}
+            onProductSelect={handleProductSelected} // Updated props
             key={refreshTrigger}
           />
         );
       case 'recipe-definition':
         return selectedProduct ? (
           <RecipeDefinitionForm 
-            product={selectedProduct}
+            product={selectedProduct} // Updated to use ProductDefinition directly
             onBack={() => {
               setSelectedProduct(null);
               setActiveMenu('products-list');

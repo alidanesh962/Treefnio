@@ -16,7 +16,19 @@ export interface Item {
   lastPurchasePrice?: number;
   lastEntryDate?: number;
 }
-
+export interface ExtendedItem extends Item {
+  id: string;
+  name: string;
+  code: string;
+  department: string;
+  price: number;
+  type: 'product' | 'material';
+  createdAt?: number;
+  saleDepartment?: string;
+  productionSegment?: string;
+  updatedAt?: number;
+  isActive?: boolean;
+}
 export interface MaterialUnit {
   id: string;
   name: string;
@@ -96,20 +108,14 @@ export interface ProductDefinition {
   createdAt: number;
   updatedAt: number;
 }
-export interface ExtendedProductDefinition extends ProductDefinition {
-  isActive: boolean;
+
+export interface ExtendedProductDefinition extends ProductDefinition { // Added interface
+  department?: string;
+  price?: number;
+  type?: 'product' | 'material';
+  isActive?: boolean; // Add this line
 }
 
-// Make sure your existing ProductDefinition interface includes all necessary fields
-export interface ProductDefinition {
-  id: string;
-  name: string;
-  code: string;
-  saleDepartment: string;
-  productionSegment: string;
-  createdAt: number;
-  updatedAt: number;
-}
 export interface ProductionBatch {
   id: string;
   productId: string;

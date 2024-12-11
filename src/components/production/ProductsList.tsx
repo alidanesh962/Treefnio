@@ -1,4 +1,5 @@
 // src/components/production/ProductsList.tsx
+
 import React, { useState, useEffect } from 'react';
 import { 
   Search, 
@@ -22,13 +23,13 @@ import {
   LayoutList
 } from 'lucide-react';
 import { db } from '../../database';
-import { ProductDefinition } from '../../types';
+import { ProductDefinition, ExtendedProductDefinition } from '../../types'; // Updated import
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import ProductDefinitionForm from './ProductDefinitionForm';
 import { exportRecipesToPDF } from '../../utils/newRecipePDFExport';
 
-interface ProductsListProps {
-  onProductSelect: (product: ProductDefinition) => void;
+interface ProductsListProps { // Updated interface
+  onProductSelect: (product: ExtendedProductDefinition) => void;
 }
 
 interface FilterState {
@@ -58,10 +59,9 @@ interface SortConfig {
   direction: 'asc' | 'desc';
 }
 
-interface ExtendedProductDefinition extends ProductDefinition {
-  isActive: boolean;
-}
-export default function ProductsList({ onProductSelect }: ProductsListProps) {
+// Removed local interface ExtendedProductDefinition
+
+export default function ProductsList({ onProductSelect }: ProductsListProps) { // Updated props type
   // Layout and basic state
   const [layout, setLayout] = useState<'grid' | 'table'>('grid');
   const [products, setProducts] = useState<ExtendedProductDefinition[]>([]);
