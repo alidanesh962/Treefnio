@@ -23,12 +23,12 @@ import {
   LayoutList
 } from 'lucide-react';
 import { db } from '../../database';
-import { ProductDefinition, ExtendedProductDefinition } from '../../types'; // Updated import
+import { ProductDefinition, ExtendedProductDefinition } from '../../types';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import ProductDefinitionForm from './ProductDefinitionForm';
 import { exportRecipesToPDF } from '../../utils/newRecipePDFExport';
 
-interface ProductsListProps { // Updated interface
+interface ProductsListProps {
   onProductSelect: (product: ExtendedProductDefinition) => void;
 }
 
@@ -59,9 +59,7 @@ interface SortConfig {
   direction: 'asc' | 'desc';
 }
 
-// Removed local interface ExtendedProductDefinition
-
-export default function ProductsList({ onProductSelect }: ProductsListProps) { // Updated props type
+export default function ProductsList({ onProductSelect }: ProductsListProps) {
   // Layout and basic state
   const [layout, setLayout] = useState<'grid' | 'table'>('grid');
   const [products, setProducts] = useState<ExtendedProductDefinition[]>([]);
@@ -136,6 +134,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) { /
     setSaleDepartments(saleDepts.map(d => d.id));
     setProductionDepartments(prodDepts.map(d => d.id));
   };
+
   const handleDefinitionSuccess = () => {
     loadProducts();
     setShowDefinitionForm(false);
@@ -209,6 +208,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) { /
       return 0;
     }
   };
+
   const handleExportRecipes = async (product: ExtendedProductDefinition) => {
     try {
       const recipes = db.getProductRecipes(product.id);
@@ -304,6 +304,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) { /
       setError('خطا در خروجی گرفتن از دستور پخت‌ها');
     }
   };
+
   const filteredAndSortedProducts = React.useMemo(() => {
     let result = [...products];
 
@@ -374,6 +375,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) { /
 
     return result;
   }, [products, searchQuery, filters, sortConfig]);
+
   const renderGridView = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-full">
@@ -501,6 +503,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) { /
       </div>
     );
   };
+
   const renderTableView = () => {
     return (
       <div className="w-full overflow-x-auto">
@@ -623,6 +626,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) { /
       </div>
     );
   };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -726,6 +730,153 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) { /
           )}
         </div>
       </div>
+
+      {/* Advanced Filters */}
+      {showAdvancedFilters && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Basic Information Filters */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                نام محصول
+              </label>
+              <input
+                type="text"
+                value={filters.name}
+                onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                   bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="نام محصول را وارد کنید"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                کد محصول
+              </label>
+              <input
+                type="text"
+                value={filters.code}
+                onChange={(e) => setFilters(prev => ({ ...prev, code: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                   bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="کد محصول را وارد کنید"
+              />
+            </div>
+
+            {/* Department Filters */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                واحد فروش
+              </label>
+              <select
+                value={filters.saleDepartment}
+                onChange={(e) => setFilters(prev => ({ ...prev, saleDepartment: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                   bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">همه واحدهای فروش</option>
+                {saleDepartments.map((deptId) => {
+                  const dept = db.getDepartment(deptId);
+                  return dept ? (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ) : null;
+                })}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                واحد تولید
+              </label>
+              <select
+                value={filters.productionSegment}
+                onChange={(e) => setFilters(prev => ({ ...prev, productionSegment: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                   bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">همه واحدهای تولید</option>
+                {productionDepartments.map((deptId) => {
+                  const dept = db.getDepartment(deptId);
+                  return dept ? (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ) : null;
+                })}
+              </select>
+            </div>
+
+            {/* Recipe and Status Filters */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                دستور پخت
+              </label>
+              <select
+                value={filters.hasRecipe}
+                onChange={(e) => setFilters(prev => ({ 
+                  ...prev, 
+                  hasRecipe: e.target.value as 'all' | 'yes' | 'no'
+                }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                   bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="all">همه</option>
+                <option value="yes">دارای دستور پخت</option>
+                <option value="no">بدون دستور پخت</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                وضعیت
+              </label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters(prev => ({ 
+                  ...prev, 
+                  status: e.target.value as 'all' | 'active' | 'inactive'
+                }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                   bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="all">همه</option>
+                <option value="active">فعال</option>
+                <option value="inactive">غیرفعال</option>
+              </select>
+            </div>
+
+            {/* Date Range Filters */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                از تاریخ
+              </label>
+              <input
+                type="date"
+                value={filters.createdDateFrom}
+                onChange={(e) => setFilters(prev => ({ ...prev, createdDateFrom: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                   bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                تا تاریخ
+              </label>
+              <input
+                type="date"
+                value={filters.createdDateTo}
+                onChange={(e) => setFilters(prev => ({ ...prev, createdDateTo: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                   bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Products List */}
       {filteredAndSortedProducts.length > 0 ? (

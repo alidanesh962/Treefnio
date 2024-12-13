@@ -9,8 +9,19 @@ import type {
   MaterialUnit,
   ProductionBatch,
   RecipeMaterial,
-  ExtendedProductDefinition // Make sure this is imported
+  ExtendedProductDefinition
 } from '../types';
+
+// Step 1: Add this interface and export it
+interface ImportColumnMapping {
+  name: number | null;
+  code: number | null;
+  department: number | null;
+  price: number | null;
+  autoGenerateCode?: boolean;
+}
+
+export type { ImportColumnMapping };
 
 // Storage Keys
 const PRODUCTS_KEY = 'restaurant_inventory_products';
@@ -25,6 +36,7 @@ const PRODUCT_ACTIVE_STATUSES_KEY = 'product_active_statuses';
 
 class Database {
   [x: string]: any;
+
   // Products Operations
   getProducts(): Item[] {
     const stored = localStorage.getItem(PRODUCTS_KEY);
@@ -70,20 +82,20 @@ class Database {
     }
     return false;
   }
+
   // Product Definitions Operations
-  getProductDefinitions(): ExtendedProductDefinition[] { // Updated return type
+  getProductDefinitions(): ExtendedProductDefinition[] {
     const stored = localStorage.getItem(PRODUCT_DEFINITIONS_KEY);
     const products: ProductDefinition[] = stored ? JSON.parse(stored) : [];
     const activeStatuses = this.getProductActiveStatuses();
     
-    // Now TypeScript knows isActive is valid
     return products.map((product) => ({
       ...product,
       isActive: activeStatuses[product.id] ?? true
     }));
   }
 
-  getProductDefinition(id: string): ExtendedProductDefinition | undefined { // Updated return type
+  getProductDefinition(id: string): ExtendedProductDefinition | undefined {
     const product = this.getProductDefinitions().find(p => p.id === id);
     if (!product) return undefined;
     
@@ -98,44 +110,47 @@ class Database {
     localStorage.setItem(PRODUCT_DEFINITIONS_KEY, JSON.stringify(products));
   }
 
-  addProductDefinition(product: Omit<ProductDefinition, 'id' | 'createdAt' | 'updatedAt'>): ExtendedProductDefinition {
+  // Step 4: Update the generateNextProductCode and addProductDefinition methods
+  generateNextProductCode(): string {
+    const products = this.getProductDefinitions();
+    let maxCode = 0;
+    
+    products.forEach(product => {
+      const numericCode = parseInt(product.code);
+      if (!isNaN(numericCode) && numericCode > maxCode) {
+        maxCode = numericCode;
+      }
+    });
+
+    return (maxCode + 1).toString().padStart(3, '0');
+  }
+
+  addProductDefinition(
+    product: Omit<ProductDefinition, 'id' | 'createdAt' | 'updatedAt'> & { autoGenerateCode?: boolean }
+  ): ProductDefinition {
     const products = this.getProductDefinitions();
     const now = Date.now();
-    const newProduct: ExtendedProductDefinition = {
+
+    const productCode = product.autoGenerateCode 
+      ? this.generateNextProductCode()
+      : product.code;
+
+    const newProduct: ProductDefinition = {
       ...product,
       id: now.toString(),
+      code: productCode,
       createdAt: now,
-      updatedAt: now,
-      isActive: true
+      updatedAt: now
     };
-    
-    // Set initial active status
-    const statuses = this.getProductActiveStatuses();
-    statuses[newProduct.id] = true;
-    this.saveProductActiveStatuses(statuses);
 
-    // Save base product definition
-    const baseProduct: ProductDefinition = {
-      id: newProduct.id,
-      name: newProduct.name,
-      code: newProduct.code,
-      saleDepartment: newProduct.saleDepartment,
-      productionSegment: newProduct.productionSegment,
-      createdAt: newProduct.createdAt,
-      updatedAt: newProduct.updatedAt
-    };
+    products.push(newProduct);
+    this.saveProductDefinitions(products);
     
-    const updatedProducts = [...products.map(p => ({
-      id: p.id,
-      name: p.name,
-      code: p.code,
-      saleDepartment: p.saleDepartment,
-      productionSegment: p.productionSegment,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt
-    })), baseProduct];
-    
-    this.saveProductDefinitions(updatedProducts);
+    // Save active status
+    const activeStatuses = this.getProductActiveStatuses();
+    activeStatuses[newProduct.id] = true;
+    this.saveProductActiveStatuses(activeStatuses);
+
     return newProduct;
   }
 
@@ -143,12 +158,10 @@ class Database {
     const products = this.getProductDefinitions();
     const index = products.findIndex(p => p.id === product.id);
     if (index !== -1) {
-      // Update active status
       const statuses = this.getProductActiveStatuses();
       statuses[product.id] = product.isActive ?? true;
       this.saveProductActiveStatuses(statuses);
 
-      // Update base product definition
       const baseProduct: ProductDefinition = {
         id: product.id,
         name: product.name,
@@ -168,20 +181,18 @@ class Database {
     }
     return false;
   }
+
   deleteProductDefinition(id: string): boolean {
     const products = this.getProductDefinitions();
     const filteredProducts = products.filter(p => p.id !== id);
     
     if (filteredProducts.length < products.length) {
-      // Remove the active status
       const statuses = this.getProductActiveStatuses();
       delete statuses[id];
       this.saveProductActiveStatuses(statuses);
       
-      // Delete associated recipes
       this.deleteProductRecipes(id);
       
-      // Save filtered products without active status
       const baseProducts = filteredProducts.map(p => ({
         id: p.id,
         name: p.name,
@@ -223,14 +234,12 @@ class Database {
     const products = this.getProductDefinitions();
     const filteredProducts = products.filter(p => !ids.includes(p.id));
     
-    // Remove active statuses
     const statuses = this.getProductActiveStatuses();
     ids.forEach(id => {
       delete statuses[id];
       this.deleteProductRecipes(id);
     });
     
-    // Save filtered products without active status
     const baseProducts = filteredProducts.map(p => ({
       id: p.id,
       name: p.name,
@@ -244,11 +253,11 @@ class Database {
     this.saveProductActiveStatuses(statuses);
     this.saveProductDefinitions(baseProducts);
   }
+
   // Materials Operations
   getMaterials(): Item[] {
     const stored = localStorage.getItem(MATERIALS_KEY);
     const materials = stored ? JSON.parse(stored) : [];
-    // Add default unit if missing
     return materials.map((material: { unit: any; }) => ({
       ...material,
       unit: material.unit || this.getMaterialUnits()[0]?.id || ''
@@ -303,7 +312,6 @@ class Database {
     materials.forEach((material, index) => {
       const materialErrors: string[] = [];
 
-      // Check required fields
       if (!material.name?.trim()) {
         materialErrors.push('نام الزامی است');
       }
@@ -320,7 +328,6 @@ class Database {
         materialErrors.push('واحد اندازه‌گیری نامعتبر است');
       }
 
-      // Check for duplicates
       if (existingMaterials.some(m => 
         m.code.toLowerCase() === material.code.toLowerCase() ||
         m.name.toLowerCase() === material.name.toLowerCase()
@@ -338,6 +345,7 @@ class Database {
       errors
     };
   }
+
   updateMaterial(material: Item): boolean {
     const materials = this.getMaterials();
     const index = materials.findIndex(m => m.id === material.id);
@@ -401,23 +409,22 @@ class Database {
       id: now.toString(),
       createdAt: now,
       updatedAt: now,
-      isActive: false // New recipes are not active by default
+      isActive: false
     };
     recipes.push(newRecipe);
     this.saveProductRecipes(recipes);
     return newRecipe;
   }
+
   setActiveRecipe(productId: string, recipeId: string): boolean {
     const recipes = this.getProductRecipes();
     
-    // First, set all recipes for this product to inactive
     const updatedRecipes = recipes.map(recipe => 
       recipe.productId === productId 
         ? { ...recipe, isActive: false }
         : recipe
     );
 
-    // Then set the selected recipe to active
     const recipeIndex = updatedRecipes.findIndex(r => r.id === recipeId);
     if (recipeIndex === -1) return false;
 
@@ -436,7 +443,6 @@ class Database {
     const index = recipes.findIndex(r => r.id === recipe.id);
     if (index === -1) return false;
 
-    // If marking as active, deactivate other recipes for this product
     if (recipe.isActive) {
       recipes.forEach((r, i) => {
         if (r.productId === recipe.productId && r.id !== recipe.id) {
@@ -462,8 +468,6 @@ class Database {
 
     const filteredRecipes = recipes.filter(r => r.id !== id);
     
-    // If deleting the active recipe and there are other recipes for this product,
-    // make the most recently updated one active
     if (recipeToDelete.isActive) {
       const productRecipes = filteredRecipes
         .filter(r => r.productId === recipeToDelete.productId)
@@ -490,6 +494,7 @@ class Database {
     const filteredRecipes = recipes.filter(r => r.productId !== productId);
     this.saveProductRecipes(filteredRecipes);
   }
+
   // Department Operations
   getDepartments(): Department[] {
     const stored = localStorage.getItem(DEPARTMENTS_KEY);
@@ -562,6 +567,7 @@ class Database {
   saveMaterialUnits(units: MaterialUnit[]): void {
     localStorage.setItem(MATERIAL_UNITS_KEY, JSON.stringify(units));
   }
+
   addMaterialUnit(name: string, symbol: string): MaterialUnit {
     const units = this.getMaterialUnits();
     const newUnit: MaterialUnit = {
@@ -586,7 +592,6 @@ class Database {
   }
 
   deleteMaterialUnit(id: string): boolean {
-    // First check if the unit is in use
     if (this.isMaterialUnitInUse(id)) {
       return false;
     }
@@ -632,6 +637,7 @@ class Database {
   saveProductionBatches(batches: ProductionBatch[]): void {
     localStorage.setItem(PRODUCTION_BATCHES_KEY, JSON.stringify(batches));
   }
+
   addProductionBatch(batch: Omit<ProductionBatch, 'id' | 'createdAt' | 'updatedAt'>): ProductionBatch {
     const batches = this.getProductionBatches();
     const now = Date.now();
@@ -695,7 +701,6 @@ class Database {
       materials: [] as string[]
     };
 
-    // Validate Products
     this.getProductDefinitions().forEach((product: ProductDefinition) => {
       if (!this.getDepartment(product.saleDepartment)) {
         errors.products.push(`Invalid sale department for product: ${product.name}`);
@@ -704,7 +709,7 @@ class Database {
         errors.products.push(`Invalid production segment for product: ${product.name}`);
       }
     });
-    // Validate Recipes
+
     this.getProductRecipes().forEach((recipe: ProductRecipe) => {
       if (!this.getProductDefinition(recipe.productId)) {
         errors.recipes.push(`Invalid product reference in recipe: ${recipe.name}`);
@@ -719,7 +724,6 @@ class Database {
       });
     });
 
-    // Validate Materials
     this.getMaterials().forEach((material: Item) => {
       if (material.unit && !this.getMaterialUnit(material.unit)) {
         errors.materials.push(`Invalid unit reference for material: ${material.name}`);
@@ -743,7 +747,6 @@ class Database {
 
   // Database integrity check and repair
   checkIntegrity(): void {
-    // Ensure all required storage keys exist
     const requiredKeys = [
       PRODUCTS_KEY,
       MATERIALS_KEY,
@@ -762,15 +765,11 @@ class Database {
       }
     });
 
-    // Initialize default units if needed
     this.initializeDefaultUnits();
-
-    // Clean up orphaned data
     this.cleanupOrphanedData();
   }
 
   private cleanupOrphanedData(): void {
-    // Clean up recipes without valid products
     const validProductIds = new Set(this.getProductDefinitions().map(p => p.id));
     let recipes = this.getProductRecipes();
     const validRecipes = recipes.filter(recipe => validProductIds.has(recipe.productId));
@@ -778,7 +777,6 @@ class Database {
       this.saveProductRecipes(validRecipes);
     }
 
-    // Clean up production batches without valid products or recipes
     const validRecipeIds = new Set(validRecipes.map(r => r.id));
     let batches = this.getProductionBatches();
     const validBatches = batches.filter(batch => 
@@ -788,7 +786,6 @@ class Database {
       this.saveProductionBatches(validBatches);
     }
 
-    // Clean up active statuses for non-existent products
     const activeStatuses = this.getProductActiveStatuses();
     let hasChanges = false;
     Object.keys(activeStatuses).forEach(productId => {
@@ -803,15 +800,12 @@ class Database {
   }
 }
 
-// Create and export the database instance
 const db = new Database();
-db.checkIntegrity(); // Run integrity check on initialization
+db.checkIntegrity();
 
-// Export database instance and types
 export { db };
 export type DatabaseType = Database;
 
-// Re-export common types
 export type {
   Department,
   ProductDefinition,

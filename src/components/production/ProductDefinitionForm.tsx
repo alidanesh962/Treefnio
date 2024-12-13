@@ -18,6 +18,9 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
     productionSegment: ''
   });
 
+  // Step 1: Add state for auto-generation toggle
+  const [autoGenerateCode, setAutoGenerateCode] = useState(false);
+
   const [saleDepartments, setSaleDepartments] = useState<Department[]>([]);
   const [productionSegments, setProductionSegments] = useState<Department[]>([]);
   const [showSaleDeptDialog, setShowSaleDeptDialog] = useState(false);
@@ -77,15 +80,27 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
     }
   };
 
+  // Step 3: Modify the validate function to skip code validation when auto-generating
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
       newErrors.name = 'نام محصول الزامی است';
     }
-    if (!formData.code.trim()) {
-      newErrors.code = 'کد محصول الزامی است';
+
+    if (!autoGenerateCode) {
+      if (!formData.code.trim()) {
+        newErrors.code = 'کد محصول الزامی است';
+      }
+      // Check for duplicate code only when not auto-generating
+      const existingProducts = db.getProductDefinitions();
+      if (!autoGenerateCode && formData.code.trim()) {
+        if (existingProducts.some(p => p.code === formData.code.trim())) {
+          newErrors.code = 'این کد محصول قبلاً استفاده شده است';
+        }
+      }
     }
+
     if (!formData.saleDepartment) {
       newErrors.saleDepartment = 'انتخاب واحد فروش الزامی است';
     }
@@ -93,16 +108,11 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
       newErrors.productionSegment = 'انتخاب واحد تولید الزامی است';
     }
 
-    // Check for duplicate code
-    const existingProducts = db.getProductDefinitions();
-    if (existingProducts.some(p => p.code === formData.code.trim())) {
-      newErrors.code = 'این کد محصول قبلاً استفاده شده است';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Step 4: Modify the handleSubmit function to include autoGenerateCode
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
@@ -119,6 +129,7 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
         code: formData.code.trim(),
         saleDepartment: formData.saleDepartment,
         productionSegment: formData.productionSegment,
+        autoGenerateCode // Pass this flag to the DB method
       };
 
       await db.addProductDefinition(productData);
@@ -176,24 +187,47 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
           )}
         </div>
 
+        {/* Step 5: Add the toggle UI component before the code input */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            کد محصول
-          </label>
-          <input
-            type="text"
-            value={formData.code}
-            onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-            disabled={isSubmitting}
-            className={`w-full px-3 py-2 rounded-lg border ${
-              errors.code 
-                ? 'border-red-300 dark:border-red-600' 
-                : 'border-gray-300 dark:border-gray-600'
-            } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white
-            disabled:opacity-50 disabled:cursor-not-allowed`}
-          />
-          {errors.code && (
-            <p className="mt-1 text-sm text-red-500">{errors.code}</p>
+          <div className="flex items-center gap-2 mb-4">
+            <input
+              type="checkbox"
+              id="autoGenerateCode"
+              checked={autoGenerateCode}
+              onChange={(e) => setAutoGenerateCode(e.target.checked)}
+              className="rounded text-blue-500 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+            <label
+              htmlFor="autoGenerateCode"
+              className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+            >
+              تولید خودکار کد محصول
+            </label>
+          </div>
+
+          {/* Modified code input field: only show when auto-generate is off */}
+          {!autoGenerateCode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                کد محصول
+              </label>
+              <input
+                type="text"
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                disabled={isSubmitting}
+                className={`w-full px-3 py-2 rounded-lg border ${
+                  errors.code 
+                    ? 'border-red-300 dark:border-red-600' 
+                    : 'border-gray-300 dark:border-gray-600'
+                } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white
+                disabled:opacity-50 disabled:cursor-not-allowed`}
+              />
+              {errors.code && (
+                <p className="mt-1 text-sm text-red-500">{errors.code}</p>
+              )}
+            </div>
           )}
         </div>
 
