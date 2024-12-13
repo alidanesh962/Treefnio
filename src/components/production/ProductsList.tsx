@@ -305,6 +305,16 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
     }
   };
 
+  // Add this function inside ProductsList component
+  const calculateRawMaterialPrice = (product: ExtendedProductDefinition): number => {
+    // Get the active recipe for the product
+    const activeRecipe = db.getActiveRecipe(product.id);
+    if (!activeRecipe) return 0;
+
+    // Calculate total price of all materials in the recipe
+    return activeRecipe.materials.reduce((total, material) => total + material.totalPrice, 0);
+  };
+
   const filteredAndSortedProducts = React.useMemo(() => {
     let result = [...products];
 
@@ -487,6 +497,16 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                   {getRecipeCount(product.id)}
                 </span>
               </div>
+
+              {/* Raw material price display */}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  قیمت خام:
+                </span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {calculateRawMaterialPrice(product).toLocaleString()} ریال
+                </span>
+              </div>
             </div>
 
             <button
@@ -541,6 +561,10 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 تعداد دستور پخت
+              </th>
+              {/* New column for raw material price */}
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                قیمت خام (ریال)
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 عملیات
@@ -600,6 +624,10 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {getRecipeCount(product.id)}
+                </td>
+                {/* Raw material price cell */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  {calculateRawMaterialPrice(product).toLocaleString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <div className="flex items-center gap-2">

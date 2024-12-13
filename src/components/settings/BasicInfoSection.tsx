@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Package, Database } from 'lucide-react';
+import { Package, Database, Archive } from 'lucide-react';
 import UnitsManagement from './UnitsManagement';
 import DepartmentsManagement from './DepartmentsManagement';
+import MaterialValuesManagement from './MaterialValuesManagement'; // New component
 
 interface TabOption {
-  id: 'units' | 'departments';
+  id: 'units' | 'departments' | 'material-values';
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }
@@ -12,10 +13,11 @@ interface TabOption {
 const tabs: TabOption[] = [
   { id: 'units', label: 'واحدهای اندازه‌گیری', icon: Package },
   { id: 'departments', label: 'بخش‌ها و گروه‌ها', icon: Database },
+  { id: 'material-values', label: 'مقادیر پیش‌فرض مواد اولیه', icon: Archive }, // New tab
 ];
 
 export default function BasicInfoSection() {
-  const [activeTab, setActiveTab] = useState<'units' | 'departments'>('units');
+  const [activeTab, setActiveTab] = useState<'units' | 'departments' | 'material-values'>('units');
 
   return (
     <div className="space-y-6">
@@ -57,6 +59,7 @@ export default function BasicInfoSection() {
       <div className="mt-6">
         {activeTab === 'units' && <UnitsManagement />}
         {activeTab === 'departments' && <DepartmentsManagement />}
+        {activeTab === 'material-values' && <MaterialValuesManagement />}
       </div>
     </div>
   );
