@@ -252,7 +252,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                 <h3 style="margin-bottom: 5px;">توضیحات:</h3>
                 <p>${recipe.notes}</p>
               </div>
-            ` : ''}
+            ` : '' }
           </div>
 
           <table style="width: 90%; border-collapse: collapse; margin-bottom: 20px;">
@@ -305,7 +305,6 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
     }
   };
 
-  // Add this function inside ProductsList component
   const calculateRawMaterialPrice = (product: ExtendedProductDefinition): number => {
     // Get the active recipe for the product
     const activeRecipe = db.getActiveRecipe(product.id);
@@ -471,22 +470,71 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                 </button>
               </div>
 
+              {/* Updated department select styles (grid view) */}
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   واحد فروش:
                 </span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {getDepartmentName(product.saleDepartment, 'sale')}
-                </span>
+                <select
+                  value={product.saleDepartment}
+                  onChange={(e) => {
+                    const updatedProduct = {
+                      ...product,
+                      saleDepartment: e.target.value
+                    };
+                    db.updateProductDefinition(updatedProduct);
+                    const newProducts = products.map(p =>
+                      p.id === product.id ? updatedProduct : p
+                    );
+                    setProducts(newProducts);
+                  }}
+                  className="text-sm font-medium bg-gray-50 dark:bg-gray-700 text-gray-900 
+                             dark:text-white border-none focus:ring-0 rounded-lg
+                             [&>option]:bg-white [&>option]:dark:bg-gray-800
+                             [&>option]:text-gray-900 [&>option]:dark:text-white"
+                >
+                  {saleDepartments.map(dept => {
+                    const department = db.getDepartment(dept);
+                    return department ? (
+                      <option key={dept} value={dept}>
+                        {department.name}
+                      </option>
+                    ) : null;
+                  })}
+                </select>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   واحد تولید:
                 </span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {getDepartmentName(product.productionSegment, 'production')}
-                </span>
+                <select
+                  value={product.productionSegment}
+                  onChange={(e) => {
+                    const updatedProduct = {
+                      ...product,
+                      productionSegment: e.target.value
+                    };
+                    db.updateProductDefinition(updatedProduct);
+                    const newProducts = products.map(p =>
+                      p.id === product.id ? updatedProduct : p
+                    );
+                    setProducts(newProducts);
+                  }}
+                  className="text-sm font-medium bg-gray-50 dark:bg-gray-700 text-gray-900 
+                             dark:text-white border-none focus:ring-0 rounded-lg
+                             [&>option]:bg-white [&>option]:dark:bg-gray-800
+                             [&>option]:text-gray-900 [&>option]:dark:text-white"
+                >
+                  {productionDepartments.map(dept => {
+                    const department = db.getDepartment(dept);
+                    return department ? (
+                      <option key={dept} value={dept}>
+                        {department.name}
+                      </option>
+                    ) : null;
+                  })}
+                </select>
               </div>
 
               <div className="flex justify-between items-center">
@@ -498,7 +546,6 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                 </span>
               </div>
 
-              {/* Raw material price display */}
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   قیمت خام:
@@ -562,7 +609,6 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 تعداد دستور پخت
               </th>
-              {/* New column for raw material price */}
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 قیمت خام (ریال)
               </th>
@@ -616,16 +662,70 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                     )}
                   </button>
                 </td>
+
+                {/* Updated department select styles (table view) */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {getDepartmentName(product.saleDepartment, 'sale')}
+                  <select
+                    value={product.saleDepartment}
+                    onChange={(e) => {
+                      const updatedProduct = {
+                        ...product,
+                        saleDepartment: e.target.value
+                      };
+                      db.updateProductDefinition(updatedProduct);
+                      const newProducts = products.map(p =>
+                        p.id === product.id ? updatedProduct : p
+                      );
+                      setProducts(newProducts);
+                    }}
+                    className="bg-gray-50 dark:bg-gray-700 border-none focus:ring-0 
+                               text-gray-900 dark:text-white rounded-lg
+                               [&>option]:bg-white [&>option]:dark:bg-gray-800
+                               [&>option]:text-gray-900 [&>option]:dark:text-white"
+                  >
+                    {saleDepartments.map(dept => {
+                      const department = db.getDepartment(dept);
+                      return department ? (
+                        <option key={dept} value={dept}>
+                          {department.name}
+                        </option>
+                      ) : null;
+                    })}
+                  </select>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {getDepartmentName(product.productionSegment, 'production')}
+                  <select
+                    value={product.productionSegment}
+                    onChange={(e) => {
+                      const updatedProduct = {
+                        ...product,
+                        productionSegment: e.target.value
+                      };
+                      db.updateProductDefinition(updatedProduct);
+                      const newProducts = products.map(p =>
+                        p.id === product.id ? updatedProduct : p
+                      );
+                      setProducts(newProducts);
+                    }}
+                    className="bg-gray-50 dark:bg-gray-700 border-none focus:ring-0 
+                               text-gray-900 dark:text-white rounded-lg
+                               [&>option]:bg-white [&>option]:dark:bg-gray-800
+                               [&>option]:text-gray-900 [&>option]:dark:text-white"
+                  >
+                    {productionDepartments.map(dept => {
+                      const department = db.getDepartment(dept);
+                      return department ? (
+                        <option key={dept} value={dept}>
+                          {department.name}
+                        </option>
+                      ) : null;
+                    })}
+                  </select>
                 </td>
+
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {getRecipeCount(product.id)}
                 </td>
-                {/* Raw material price cell */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {calculateRawMaterialPrice(product).toLocaleString()}
                 </td>
@@ -844,7 +944,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
               </label>
               <select
                 value={filters.hasRecipe}
-                onChange={(e) => setFilters(prev => ({ 
+                onChange={(e) => setFilters(prev => ({
                   ...prev, 
                   hasRecipe: e.target.value as 'all' | 'yes' | 'no'
                 }))}
@@ -863,7 +963,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
               </label>
               <select
                 value={filters.status}
-                onChange={(e) => setFilters(prev => ({ 
+                onChange={(e) => setFilters(prev => ({
                   ...prev, 
                   status: e.target.value as 'all' | 'active' | 'inactive'
                 }))}

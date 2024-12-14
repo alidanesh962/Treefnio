@@ -1,8 +1,19 @@
-    // src/components/inventory/MaterialCreateDialog.tsx
+// src/components/inventory/MaterialCreateDialog.tsx
 import React, { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { db } from '../../database';
 import { MaterialUnit } from '../../types';
+
+// **New import** for fetching default values:
+import { getMaterialDefaults } from '../../utils/materialDefaults';
+
+// Step 1: Add interface for material defaults
+interface MaterialDefault {
+  id: string;
+  name: string;
+  defaultDepartment: string;
+  defaultStorage: string;
+}
 
 interface MaterialCreateDialogProps {
   isOpen: boolean;
@@ -30,6 +41,9 @@ export default function MaterialCreateDialog({
   const [units, setUnits] = useState<MaterialUnit[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Step 2: Type the materialDefaults state properly
+  const [materialDefaults, setMaterialDefaults] = useState<MaterialDefault[]>(getMaterialDefaults());
 
   useEffect(() => {
     loadUnits();
@@ -131,6 +145,33 @@ export default function MaterialCreateDialog({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Default Values Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+             مجموعه 
+            </label>
+            {/* Step 3: Update the select element's onChange handler with proper types */}
+            <select
+              onChange={(e) => {
+                const selected = materialDefaults.find((d: MaterialDefault) => d.id === e.target.value);
+                if (selected) {
+                  setFormData(prev => ({
+                    ...prev,
+                    department: selected.defaultDepartment,
+                    location: selected.defaultStorage
+                  }));
+                }
+              }}
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">انتخاب مقادیر پیش‌فرض...</option>
+              {materialDefaults.map((def: MaterialDefault) => (
+                <option key={def.id} value={def.id}>{def.name}</option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               نام ماده اولیه
