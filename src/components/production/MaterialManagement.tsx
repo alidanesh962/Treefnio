@@ -329,6 +329,7 @@ export default function MaterialManagement() {
         itemName={showDeleteConfirm.materialName}
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteConfirm({ isOpen: false, materialId: '', materialName: '' })}
+        type="item"
       />
     </div>
   );

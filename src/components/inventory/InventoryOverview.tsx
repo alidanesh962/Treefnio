@@ -95,10 +95,13 @@ export default function InventoryOverview() {
   };
   const handleAddItem = (item: { name: string; code: string; department: string; price: number }) => {
     const newMaterial: ExtendedItem = {
-      ...item,
+      id: '', // This will be set by the database
+      name: item.name,
+      code: item.code,
+      department: item.department,
+      price: item.price,
       type: 'material',
-      createdAt: Date.now(),
-      id: ''
+      createdAt: Date.now()
     };
     const addedMaterial = db.addMaterial(newMaterial);
     setMaterials(prevMaterials => [...prevMaterials, { ...addedMaterial, createdAt: Date.now() }]);
@@ -433,6 +436,7 @@ export default function InventoryOverview() {
         itemName={deleteConfirm.name}
         onConfirm={handleDelete}
         onCancel={() => setDeleteConfirm({ isOpen: false, id: '', name: '' })}
+        type="item"
       />
 
       {/* Date Picker Styles */}

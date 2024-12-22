@@ -21,6 +21,7 @@ interface ColumnMapping {
   code: number | null;
   department: number | null;
   price: number | null;
+  unit: number | null;
   autoGenerateCode?: boolean;
 }
 
@@ -83,6 +84,7 @@ export default function ProductImport({ onClose, onSuccess }: ProductImportProps
     code: null,
     department: null,
     price: null,
+    unit: null,
     autoGenerateCode: false // Step 4: Correct state initialization
   });
   const [previewProducts, setPreviewProducts] = useState<PreviewProduct[]>([]);
@@ -317,6 +319,7 @@ export default function ProductImport({ onClose, onSuccess }: ProductImportProps
       code: null,
       department: null,
       price: null,
+      unit: null,
       autoGenerateCode: false
     };
 

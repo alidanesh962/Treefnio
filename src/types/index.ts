@@ -16,19 +16,15 @@ export interface Item {
   lastPurchasePrice?: number;
   lastEntryDate?: number;
 }
+
 export interface ExtendedItem extends Item {
-  id: string;
-  name: string;
-  code: string;
-  department: string;
-  price: number;
-  type: 'product' | 'material';
   createdAt?: number;
   saleDepartment?: string;
   productionSegment?: string;
   updatedAt?: number;
   isActive?: boolean;
 }
+
 export interface MaterialUnit {
   id: string;
   name: string;

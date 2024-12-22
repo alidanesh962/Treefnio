@@ -16,7 +16,6 @@ import BulkEditDialog from './BulkEditDialog';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import MaterialImport from './MaterialImport';
 import MaterialCreateDialog from './MaterialCreateDialog';
-import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
 
 interface FilterState {
   search: string;
@@ -35,14 +34,6 @@ interface FilterState {
 interface SortState {
   field: keyof Item | undefined;
   direction: 'asc' | 'desc';
-}
-
-interface MaterialProduction {
-  id: string;
-  materialId: string;
-  quantity: number;
-  date: string;
-  // Add other production properties
 }
 
 const initialFilterState: FilterState = {
@@ -71,24 +62,6 @@ const EditingMP: React.FC = () => {
   const [sort, setSort] = useState<SortState>({ field: undefined, direction: 'asc' });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
-  const [productions, setProductions] = useState<MaterialProduction[]>([]);
-
-  // Initialize real-time updates for material productions
-  const { emitUpdate } = useRealTimeUpdates('production-update', (data) => {
-    switch (data.type) {
-      case 'add':
-        setProductions(prev => [...prev, data.production]);
-        break;
-      case 'update':
-        setProductions(prev => prev.map(production => 
-          production.id === data.production.id ? data.production : production
-        ));
-        break;
-      case 'delete':
-        setProductions(prev => prev.filter(production => production.id !== data.productionId));
-        break;
-    }
-  });
 
   // Effect hooks
   useEffect(() => {
@@ -274,31 +247,6 @@ const EditingMP: React.FC = () => {
     loadAllItems();
     setShowCreateDialog(false);
   };
-
-  const handleAddProduction = (production: MaterialProduction) => {
-    emitUpdate({
-      type: 'add',
-      production
-    });
-    setProductions(prev => [...prev, production]);
-  };
-
-  const handleUpdateProduction = (production: MaterialProduction) => {
-    emitUpdate({
-      type: 'update',
-      production
-    });
-    setProductions(prev => prev.map(p => p.id === production.id ? production : p));
-  };
-
-  const handleDeleteProduction = (productionId: string) => {
-    emitUpdate({
-      type: 'delete',
-      productionId
-    });
-    setProductions(prev => prev.filter(p => p.id !== productionId));
-  };
-
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -627,6 +575,7 @@ const EditingMP: React.FC = () => {
         itemName={`${selectedItems.length} مورد انتخاب شده`}
         onConfirm={handleBulkDelete}
         onCancel={() => setShowDeleteConfirm(false)}
+        type="item"
       />
 
       {showImportDialog && (

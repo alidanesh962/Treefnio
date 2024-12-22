@@ -87,17 +87,11 @@ export default function Settings() {
 
       if (response.ok) {
         const result: ApiResponse<IUser> = await response.json();
-        if (result.data && '_id' in result.data) {
+        if (result.data) {
           const updatedData = result.data;
-          setUsers(prevUsers => {
-            const newUsers: IUser[] = prevUsers.map(user => {
-              if (user._id === updatedData._id) {
-                return updatedData;
-              }
-              return user;
-            });
-            return newUsers;
-          });
+          setUsers(currentUsers => 
+            currentUsers.map(user => user._id === updatedData._id ? updatedData : user) as IUser[]
+          );
           socket?.emit('settingsUpdate', { type: 'users', data: updatedData });
         }
       } else {
@@ -120,11 +114,9 @@ export default function Settings() {
 
       if (response.ok) {
         const result: ApiResponse<IUser> = await response.json();
-        if (result.data && '_id' in result.data) {
-          const newUser = result.data;
-          setUsers(prevUsers => [...prevUsers, newUser]);
-          // Notify other clients
-          socket?.emit('settingsUpdate', { type: 'users', data: newUser });
+        if (result.data) {
+          setUsers(currentUsers => [...currentUsers, result.data] as IUser[]);
+          socket?.emit('settingsUpdate', { type: 'users', data: result.data });
         }
       } else {
         console.error('Failed to add user');
@@ -142,7 +134,7 @@ export default function Settings() {
     ).length;
 
     if (userToDelete?.role === 'admin' && remainingAdmins === 0) {
-      alert('نی‌توان آخرین کاربر مدی�� را حذف کرد');
+      alert('نمی‌توان آخرین کاربر مدیر را حذف کرد');
       return;
     }
 
@@ -162,8 +154,7 @@ export default function Settings() {
       });
 
       if (response.ok) {
-        setUsers(prevUsers => prevUsers.filter(user => user._id !== id));
-        // Notify other clients
+        setUsers(currentUsers => currentUsers.filter(user => user._id !== id));
         socket?.emit('settingsUpdate', { type: 'users', data: id });
       } else {
         console.error('Failed to delete user');
