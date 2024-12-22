@@ -115,7 +115,7 @@ export default function Settings() {
       if (response.ok) {
         const result: ApiResponse<IUser> = await response.json();
         if (result.data) {
-          setUsers(currentUsers => [...currentUsers, result.data] as IUser[]);
+          await fetchUsers();
           socket?.emit('settingsUpdate', { type: 'users', data: result.data });
         }
       } else {
