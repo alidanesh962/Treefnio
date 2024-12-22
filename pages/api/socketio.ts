@@ -27,13 +27,22 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
     path: '/api/socketio',
     addTrailingSlash: false,
     cors: {
-      origin: '*',
-      methods: ['GET', 'POST'],
+      origin: process.env.NODE_ENV === 'production'
+        ? ['https://treefnio.vercel.app']
+        : 'http://localhost:3000',
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true,
     },
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'],
     pingTimeout: 60000,
     pingInterval: 25000,
+    cookie: {
+      name: 'io',
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax'
+    }
   });
   
   res.socket.server.io = io;
@@ -45,27 +54,31 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
     // Send initial connection success event
     socket.emit('connection_success', { message: 'Successfully connected to server' });
 
+    // Join a default room for broadcasting
+    socket.join('broadcast-room');
+
     socket.on('disconnect', () => {
       console.log(`Client disconnected: ${socket.id}`);
+      socket.leave('broadcast-room');
     });
 
     // Add your custom event handlers here
     socket.on('tableUpdate', (data) => {
       console.log('Table update received:', data);
-      // Broadcast to all clients except sender
-      socket.broadcast.emit('tableUpdate', data);
+      // Broadcast to all clients in the room
+      io.to('broadcast-room').emit('tableUpdate', data);
     });
 
     socket.on('orderUpdate', (data) => {
       console.log('Order update received:', data);
-      socket.broadcast.emit('orderUpdate', data);
+      io.to('broadcast-room').emit('orderUpdate', data);
     });
 
     // Settings update handler
     socket.on('settingsUpdate', (data: { type: string; data: any }) => {
       console.log(`Settings update received - Type: ${data.type}`, data.data);
-      // Broadcast the settings update to all other clients
-      socket.broadcast.emit('settingsUpdate', data);
+      // Broadcast the settings update to all clients in the room
+      io.to('broadcast-room').emit('settingsUpdate', data);
     });
 
     // Handle errors
