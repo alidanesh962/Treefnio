@@ -21,44 +21,49 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
+    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || window.location.origin;
     
-    const socket = io(SOCKET_URL, {
+    // Configure Socket.IO client
+    const socketInstance = io(SOCKET_URL, {
       path: '/api/socketio',
       transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      // Add these options for production
+      secure: true,
+      rejectUnauthorized: false,
     });
 
-    socket.on('connect', () => {
+    socketInstance.on('connect', () => {
       setIsConnected(true);
       setError(null);
-      console.log('Socket connected');
+      console.log('Socket connected to:', SOCKET_URL);
     });
 
-    socket.on('connect_error', (err: Error) => {
+    socketInstance.on('connect_error', (err: Error) => {
       setError(err);
       console.error('Socket connection error:', err);
+      console.log('Failed to connect to:', SOCKET_URL);
     });
 
-    socket.on('disconnect', (reason: string) => {
+    socketInstance.on('disconnect', (reason: string) => {
       setIsConnected(false);
       console.log('Socket disconnected:', reason);
     });
 
-    socket.on('error', (err: Error) => {
+    socketInstance.on('error', (err: Error) => {
       setError(err);
       console.error('Socket error:', err);
     });
 
-    setSocket(socket);
+    setSocket(socketInstance);
 
     return () => {
-      if (socket) {
-        socket.removeAllListeners();
-        socket.disconnect();
+      if (socketInstance) {
+        socketInstance.removeAllListeners();
+        socketInstance.disconnect();
         setSocket(null);
         setIsConnected(false);
         setError(null);

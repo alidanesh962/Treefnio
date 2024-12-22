@@ -12,9 +12,11 @@ import BasicInfoSection from '../components/settings/BasicInfoSection';
 import { getStoredUsers, saveUsers } from '../utils/storage';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { User, CurrentUser } from '../types';
+import { useSocket } from '../utils/socketContext';
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { socket } = useSocket();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(getCurrentUser());
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [activeMenu, setActiveMenu] = useState('access-control');
@@ -27,7 +29,28 @@ export default function Settings() {
       return;
     }
     setUsers(getStoredUsers());
-  }, [currentUser, navigate]);
+
+    // Listen for settings updates from other clients
+    if (socket) {
+      socket.on('settingsUpdate', (data: { type: string; data: any }) => {
+        switch (data.type) {
+          case 'users':
+            setUsers(data.data);
+            saveUsers(data.data);
+            break;
+          // Add other settings types here as needed
+          default:
+            break;
+        }
+      });
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('settingsUpdate');
+      }
+    };
+  }, [currentUser, navigate, socket]);
 
   const handleLogoutClick = () => {
     setShowLogoutDialog(true);
@@ -46,6 +69,13 @@ export default function Settings() {
   const toggleSidebar = () => {
     setSidebarOpen(!isSidebarOpen);
   };
+
+  const emitSettingsUpdate = (type: string, data: any) => {
+    if (socket) {
+      socket.emit('settingsUpdate', { type, data });
+    }
+  };
+
   const handleAddUser = (newUser: Omit<User, 'id'>) => {
     const maxId = Math.max(...users.map(user => user.id), 0);
     const user: User = {
@@ -55,6 +85,7 @@ export default function Settings() {
     const updatedUsers = [...users, user];
     saveUsers(updatedUsers);
     setUsers(updatedUsers);
+    emitSettingsUpdate('users', updatedUsers);
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -63,6 +94,7 @@ export default function Settings() {
     );
     saveUsers(updatedUsers);
     setUsers(updatedUsers);
+    emitSettingsUpdate('users', updatedUsers);
   };
 
   const handleDeleteUser = (id: number) => {
@@ -86,7 +118,9 @@ export default function Settings() {
     const updatedUsers = users.filter(user => user.id !== id);
     saveUsers(updatedUsers);
     setUsers(updatedUsers);
+    emitSettingsUpdate('users', updatedUsers);
   };
+
   if (!currentUser) {
     return null;
   }
