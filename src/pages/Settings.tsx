@@ -9,10 +9,20 @@ import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
 import AccessControlSection from '../components/settings/AccessControlSection';
 import UserActivitySection from '../components/settings/UserActivitySection';
 import BasicInfoSection from '../components/settings/BasicInfoSection';
-import { getStoredUsers, saveUsers } from '../utils/storage';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
-import { User, CurrentUser } from '../types';
 import { useSocket } from '../utils/socketContext';
+import type { IUser, NewUser } from '../models/User';
+
+interface CurrentUser {
+  username: string;
+  role: string;
+}
+
+interface ApiResponse<T> {
+  data?: T;
+  error?: string;
+  message?: string;
+}
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -20,37 +30,32 @@ export default function Settings() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(getCurrentUser());
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [activeMenu, setActiveMenu] = useState('access-control');
-  const [users, setUsers] = useState<User[]>(getStoredUsers());
+  const [users, setUsers] = useState<IUser[]>([]);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users');
+      if (response.ok) {
+        const result: ApiResponse<IUser[]> = await response.json();
+        if (result.data) {
+          setUsers(result.data);
+        }
+      } else {
+        console.error('Failed to fetch users');
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   useEffect(() => {
     if (!currentUser) {
       navigate('/login');
       return;
     }
-    setUsers(getStoredUsers());
-
-    // Listen for settings updates from other clients
-    if (socket) {
-      socket.on('settingsUpdate', (data: { type: string; data: any }) => {
-        switch (data.type) {
-          case 'users':
-            setUsers(data.data);
-            saveUsers(data.data);
-            break;
-          // Add other settings types here as needed
-          default:
-            break;
-        }
-      });
-    }
-
-    return () => {
-      if (socket) {
-        socket.off('settingsUpdate');
-      }
-    };
-  }, [currentUser, navigate, socket]);
+    fetchUsers();
+  }, [currentUser, navigate]);
 
   const handleLogoutClick = () => {
     setShowLogoutDialog(true);
@@ -70,42 +75,74 @@ export default function Settings() {
     setSidebarOpen(!isSidebarOpen);
   };
 
-  const emitSettingsUpdate = (type: string, data: any) => {
-    if (socket) {
-      socket.emit('settingsUpdate', { type, data });
+  const handleUpdateUser = async (updatedUser: IUser) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedUser),
+      });
+
+      if (response.ok) {
+        const result: ApiResponse<IUser> = await response.json();
+        if (result.data && '_id' in result.data) {
+          const updatedData = result.data;
+          setUsers(prevUsers => {
+            const newUsers: IUser[] = prevUsers.map(user => {
+              if (user._id === updatedData._id) {
+                return updatedData;
+              }
+              return user;
+            });
+            return newUsers;
+          });
+          socket?.emit('settingsUpdate', { type: 'users', data: updatedData });
+        }
+      } else {
+        console.error('Failed to update user');
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
     }
   };
 
-  const handleAddUser = (newUser: Omit<User, 'id'>) => {
-    const maxId = Math.max(...users.map(user => user.id), 0);
-    const user: User = {
-      ...newUser,
-      id: maxId + 1
-    };
-    const updatedUsers = [...users, user];
-    saveUsers(updatedUsers);
-    setUsers(updatedUsers);
-    emitSettingsUpdate('users', updatedUsers);
+  const handleAddUser = async (newUser: NewUser) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUser),
+      });
+
+      if (response.ok) {
+        const result: ApiResponse<IUser> = await response.json();
+        if (result.data && '_id' in result.data) {
+          const newUser = result.data;
+          setUsers(prevUsers => [...prevUsers, newUser]);
+          // Notify other clients
+          socket?.emit('settingsUpdate', { type: 'users', data: newUser });
+        }
+      } else {
+        console.error('Failed to add user');
+      }
+    } catch (error) {
+      console.error('Error adding user:', error);
+    }
   };
 
-  const handleUpdateUser = (updatedUser: User) => {
-    const updatedUsers = users.map(user => 
-      user.id === updatedUser.id ? updatedUser : user
-    );
-    saveUsers(updatedUsers);
-    setUsers(updatedUsers);
-    emitSettingsUpdate('users', updatedUsers);
-  };
-
-  const handleDeleteUser = (id: number) => {
+  const handleDeleteUser = async (id: string) => {
     // Prevent deleting the last admin user
-    const userToDelete = users.find(user => user.id === id);
+    const userToDelete = users.find(user => user._id === id);
     const remainingAdmins = users.filter(user => 
-      user.id !== id && user.role === 'admin'
+      user._id !== id && user.role === 'admin'
     ).length;
 
     if (userToDelete?.role === 'admin' && remainingAdmins === 0) {
-      alert('نمی‌توان آخرین کاربر مدیر را حذف کرد');
+      alert('نی‌توان آخرین کاربر مدی�� را حذف کرد');
       return;
     }
 
@@ -115,11 +152,44 @@ export default function Settings() {
       return;
     }
 
-    const updatedUsers = users.filter(user => user.id !== id);
-    saveUsers(updatedUsers);
-    setUsers(updatedUsers);
-    emitSettingsUpdate('users', updatedUsers);
+    try {
+      const response = await fetch('/api/users', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id }),
+      });
+
+      if (response.ok) {
+        setUsers(prevUsers => prevUsers.filter(user => user._id !== id));
+        // Notify other clients
+        socket?.emit('settingsUpdate', { type: 'users', data: id });
+      } else {
+        console.error('Failed to delete user');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
   };
+
+  // Listen for settings updates from other clients
+  useEffect(() => {
+    if (socket) {
+      socket.on('settingsUpdate', async (data: { type: string; data: any }) => {
+        if (data.type === 'users') {
+          // Refresh the users list when receiving an update
+          await fetchUsers();
+        }
+      });
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('settingsUpdate');
+      }
+    };
+  }, [socket]);
 
   if (!currentUser) {
     return null;
@@ -153,7 +223,7 @@ export default function Settings() {
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
             <Users className="h-5 w-5 ml-2" />
-            کاربران و دسترسی‌ها
+            کاربران و دسترسی‌ه
             <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
 

@@ -37,6 +37,8 @@
     "lodash": "^4.17.21",
     "lucide-react": "^0.454.0",
     "moment-jalaali": "^0.10.4",
+    "mongodb": "^6.12.0",
+    "mongoose": "^8.9.2",
     "next": "^15.1.2",
     "papaparse": "^5.4.1",
     "postcss": "^8.4.47",
