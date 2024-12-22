@@ -7,7 +7,8 @@ import Settings from './pages/Settings';
 import InventoryManagement from './pages/InventoryManagement';
 import ReportingPage from './pages/ReportingPage';
 import SalesModule from './pages/SalesModule';
-import ProductionModule from './pages/ProductionModule'; // New import
+import ProductionModule from './pages/ProductionModule';
+import { SocketProvider } from './utils/socketContext';
 
 function App() {
   useEffect(() => {
@@ -17,18 +18,20 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/inventory" element={<InventoryManagement />} />
-        <Route path="/reports" element={<ReportingPage />} />
-        <Route path="/sales" element={<SalesModule />} />
-        <Route path="/production" element={<ProductionModule />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </Router>
+    <SocketProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/inventory" element={<InventoryManagement />} />
+          <Route path="/reports" element={<ReportingPage />} />
+          <Route path="/sales" element={<SalesModule />} />
+          <Route path="/production" element={<ProductionModule />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Router>
+    </SocketProvider>
   );
 }
 

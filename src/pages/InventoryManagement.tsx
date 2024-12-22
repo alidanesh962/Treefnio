@@ -19,6 +19,7 @@ import MaterialManagement from '../components/production/MaterialManagement';
 import MaterialUnitManagement from '../components/production/MaterialUnitManagement';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { CurrentUser } from '../types';
+import { useRealTimeUpdates } from '../hooks/useRealTimeUpdates';
 
 interface MenuOption {
   id: string;
@@ -39,6 +40,7 @@ export default function InventoryManagement() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [activeMenu, setActiveMenu] = useState('inventory');
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [inventory, setInventory] = useState<any[]>([]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -76,6 +78,40 @@ export default function InventoryManagement() {
         return <MaterialUnitManagement />;
       default:
         return <EditingMP />;
+    }
+  };
+
+  // Initialize real-time updates
+  const { emitUpdate } = useRealTimeUpdates('inventory-update', (data) => {
+    // Handle incoming updates
+    if (data.type === 'add') {
+      setInventory(prev => [...prev, data.item]);
+    } else if (data.type === 'update') {
+      setInventory(prev => prev.map(item => 
+        item.id === data.item.id ? data.item : item
+      ));
+    } else if (data.type === 'delete') {
+      setInventory(prev => prev.filter(item => item.id !== data.itemId));
+    }
+  });
+
+  // Function to update inventory
+  const handleInventoryUpdate = (updateType: string, data: any) => {
+    // Emit the update to other clients
+    emitUpdate({
+      type: updateType,
+      ...data
+    });
+    
+    // Update local state
+    if (updateType === 'add') {
+      setInventory(prev => [...prev, data.item]);
+    } else if (updateType === 'update') {
+      setInventory(prev => prev.map(item => 
+        item.id === data.item.id ? data.item : item
+      ));
+    } else if (updateType === 'delete') {
+      setInventory(prev => prev.filter(item => item.id !== data.itemId));
     }
   };
 

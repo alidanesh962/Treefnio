@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { db } from '../../database';
 import { Item, MaterialUnit } from '../../types';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
+import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
 
 interface MaterialFormData {
   name: string;
@@ -30,6 +31,22 @@ export default function MaterialManagement() {
     materialId: string;
     materialName: string;
   }>({ isOpen: false, materialId: '', materialName: '' });
+
+  const { emitUpdate } = useRealTimeUpdates('material-update', (data) => {
+    switch (data.type) {
+      case 'add':
+        setMaterials(prev => [...prev, data.material]);
+        break;
+      case 'update':
+        setMaterials(prev => prev.map(material => 
+          material.id === data.material.id ? data.material : material
+        ));
+        break;
+      case 'delete':
+        setMaterials(prev => prev.filter(material => material.id !== data.materialId));
+        break;
+    }
+  });
 
   useEffect(() => {
     loadMaterials();

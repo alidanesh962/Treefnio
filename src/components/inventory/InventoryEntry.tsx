@@ -5,6 +5,7 @@ import { Plus, Save, Trash2, Calculator, Search } from 'lucide-react';
 import { Item, MaterialUnit, InventoryEntry as InventoryEntryType } from '../../types';
 import { db } from '../../database';
 import InventoryEntryRow from './InventoryEntryRow';
+import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
 
 interface EntryFormRow {
   materialId: string;
@@ -44,6 +45,15 @@ const getCurrentPersianDate = () => {
   const now = new Date();
   return new Intl.DateTimeFormat('fa-IR').format(now);
 };
+
+interface InventoryEntry {
+  id: string;
+  materialId: string;
+  quantity: number;
+  date: string;
+  // Add other entry properties
+}
+
 export default function InventoryEntry() {
     const [formData, setFormData] = useState<EntryFormData>({
       rows: [{ ...initialRowState }],
@@ -57,6 +67,24 @@ export default function InventoryEntry() {
     const [units, setUnits] = useState<MaterialUnit[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [entries, setEntries] = useState<InventoryEntry[]>([]);
+  
+    // Initialize real-time updates for inventory entries
+    const { emitUpdate } = useRealTimeUpdates('inventory-entry-update', (data) => {
+      switch (data.type) {
+        case 'add':
+          setEntries(prev => [...prev, data.entry]);
+          break;
+        case 'update':
+          setEntries(prev => prev.map(entry => 
+            entry.id === data.entry.id ? data.entry : entry
+          ));
+          break;
+        case 'delete':
+          setEntries(prev => prev.filter(entry => entry.id !== data.entryId));
+          break;
+      }
+    });
   
     useEffect(() => {
       loadData();

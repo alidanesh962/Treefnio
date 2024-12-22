@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { db } from '../../database';
 import { MaterialUnit } from '../../types';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
+import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
 
 interface UnitFormData {
   name: string;
@@ -22,6 +23,23 @@ export default function MaterialUnitManagement() {
     unitId: string;
     unitName: string;
   }>({ isOpen: false, unitId: '', unitName: '' });
+
+  // Initialize real-time updates for material units
+  const { emitUpdate } = useRealTimeUpdates('unit-update', (data) => {
+    switch (data.type) {
+      case 'add':
+        setUnits(prev => [...prev, data.unit]);
+        break;
+      case 'update':
+        setUnits(prev => prev.map(unit => 
+          unit.id === data.unit.id ? data.unit : unit
+        ));
+        break;
+      case 'delete':
+        setUnits(prev => prev.filter(unit => unit.id !== data.unitId));
+        break;
+    }
+  });
 
   useEffect(() => {
     loadUnits();
@@ -96,6 +114,30 @@ export default function MaterialUnitManagement() {
       loadUnits();
     }
     setShowDeleteConfirm({ isOpen: false, unitId: '', unitName: '' });
+  };
+
+  const handleAddUnit = (unit: MaterialUnit) => {
+    emitUpdate({
+      type: 'add',
+      unit
+    });
+    setUnits(prev => [...prev, unit]);
+  };
+
+  const handleUpdateUnit = (unit: MaterialUnit) => {
+    emitUpdate({
+      type: 'update',
+      unit
+    });
+    setUnits(prev => prev.map(u => u.id === unit.id ? unit : u));
+  };
+
+  const handleDeleteUnit = (unitId: string) => {
+    emitUpdate({
+      type: 'delete',
+      unitId
+    });
+    setUnits(prev => prev.filter(u => u.id !== unitId));
   };
 
   return (
