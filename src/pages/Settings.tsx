@@ -112,17 +112,21 @@ export default function Settings() {
         body: JSON.stringify(newUser),
       });
 
-      if (response.ok) {
-        const result: ApiResponse<IUser> = await response.json();
-        if (result.data) {
-          await fetchUsers();
-          socket?.emit('settingsUpdate', { type: 'users', data: result.data });
-        }
+      const result: ApiResponse<IUser> = await response.json();
+      
+      if (response.ok && result.data) {
+        const updatedUsers: IUser[] = [...users, result.data];
+        setUsers(updatedUsers);
+        await fetchUsers();
+        socket?.emit('settingsUpdate', { type: 'users', data: result.data });
       } else {
-        console.error('Failed to add user');
+        const errorMessage = result.error || 'خطای نامشخص';
+        console.error('Failed to add user:', errorMessage);
+        alert('خطا در ایجاد کاربر: ' + errorMessage);
       }
     } catch (error) {
       console.error('Error adding user:', error);
+      alert('خطا در ارتباط با سرور');
     }
   };
 
