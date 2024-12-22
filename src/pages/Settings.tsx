@@ -35,7 +35,13 @@ export default function Settings() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/users');
+      const response = await fetch('https://treefnio.vercel.app/api/users', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        credentials: 'include'
+      });
       if (response.ok) {
         const result: ApiResponse<IUser[]> = await response.json();
         if (result.data) {
@@ -104,11 +110,13 @@ export default function Settings() {
 
   const handleAddUser = async (newUser: NewUser) => {
     try {
-      const response = await fetch('/api/users', {
+      const response = await fetch('https://treefnio.vercel.app/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(newUser),
       });
 
@@ -149,11 +157,13 @@ export default function Settings() {
     }
 
     try {
-      const response = await fetch('/api/users', {
+      const response = await fetch('https://treefnio.vercel.app/api/users', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ id }),
       });
 
