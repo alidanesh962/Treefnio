@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Save, X, AlertCircle, Check } from 'lucide-react';
+import { Upload, Save, X, AlertCircle, Check, Eye } from 'lucide-react';
 import { SalesImportService } from '../../services/salesImport';
 import { Product, Material } from '../../types';
+import * as XLSX from 'xlsx';
+import { ProductMappingDialog, UnmatchedProduct } from './ProductMappingDialog';
 
 interface ColumnMapping {
   fileColumn: string;
   appColumn: string;
+  sampleData: string[];
 }
 
 interface FileImportConfig {
@@ -33,6 +36,11 @@ export default function FileImportSection() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [shouldUpdatePrices, setShouldUpdatePrices] = useState(false);
+  const [showSampleData, setShowSampleData] = useState(false);
+  const [unmatchedProducts, setUnmatchedProducts] = useState<UnmatchedProduct[]>([]);
+  const [showProductMapping, setShowProductMapping] = useState(false);
+  const [existingProducts, setExistingProducts] = useState<Product[]>([]);
+  const [importData, setImportData] = useState<any[]>([]);
 
   const appColumns = [
     { value: 'product_code', label: 'کد محصول' },
@@ -50,20 +58,54 @@ export default function FileImportSection() {
     }
   }, []);
 
+  const processExcelFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target?.result as ArrayBuffer);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
+      
+      setPreviewData(jsonData.slice(0, 5));
+      if (hasHeader && jsonData.length > 0) {
+        setColumnMappings(jsonData[0].map(col => ({
+          fileColumn: col,
+          appColumn: '',
+          sampleData: jsonData.slice(1, 5).map(row => row[jsonData[0].indexOf(col)] || '')
+        })));
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const processTextFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rows = text.split('\n').map(row => row.split(delimiter));
+      setPreviewData(rows.slice(0, 5));
+      if (hasHeader && rows.length > 0) {
+        setColumnMappings(rows[0].map((col, index) => ({
+          fileColumn: col,
+          appColumn: '',
+          sampleData: rows.slice(1, 5).map(row => row[index] || '')
+        })));
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        const rows = text.split('\n').map(row => row.split(delimiter));
-        setPreviewData(rows.slice(0, 5)); // Preview first 5 rows
-        if (hasHeader) {
-          setColumnMappings(rows[0].map(col => ({ fileColumn: col, appColumn: '' })));
-        }
-      };
-      reader.readAsText(file);
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      
+      if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+        processExcelFile(file);
+      } else {
+        processTextFile(file);
+      }
     }
   };
 
@@ -95,70 +137,118 @@ export default function FileImportSection() {
     setImportResult(null);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const text = e.target?.result as string;
-          const rows = text.split('\n').map(row => row.split(delimiter));
-          const dataStartIndex = hasHeader ? 1 : 0;
-          
-          const importData = rows.slice(dataStartIndex).map(row => {
-            const data: any = {};
-            columnMappings.forEach((mapping, index) => {
-              if (mapping.appColumn && row[index]) {
-                const value = row[index].trim();
-                switch (mapping.appColumn) {
-                  case 'quantity':
-                  case 'price':
-                    const numValue = parseFloat(value);
-                    if (isNaN(numValue)) {
-                      throw new Error(`Invalid ${mapping.appColumn} value: ${value}`);
-                    }
-                    data[mapping.appColumn] = numValue;
-                    break;
-                  default:
-                    data[mapping.appColumn] = value;
-                }
+      const processImportData = (rows: string[][]) => {
+        const dataStartIndex = hasHeader ? 1 : 0;
+        return rows.slice(dataStartIndex).map(row => {
+          const data: any = {};
+          columnMappings.forEach((mapping, index) => {
+            if (mapping.appColumn && row[index]) {
+              const value = row[index].toString().trim();
+              switch (mapping.appColumn) {
+                case 'quantity':
+                case 'price':
+                  const numValue = parseFloat(value);
+                  if (isNaN(numValue)) {
+                    throw new Error(`Invalid ${mapping.appColumn} value: ${value}`);
+                  }
+                  data[mapping.appColumn] = numValue;
+                  break;
+                default:
+                  data[mapping.appColumn] = value;
               }
-            });
-            return data;
+            }
           });
-
-          const importService = SalesImportService.getInstance();
-          
-          // TODO: Get actual products and materials from your state management
-          const dummyProducts: Product[] = [];
-          const dummyMaterials: Material[] = [];
-          
-          importService.setProducts(dummyProducts);
-          importService.setMaterials(dummyMaterials);
-
-          const result = await importService.importSalesData(importData);
-          
-          if (shouldUpdatePrices) {
-            const priceUpdateResult = await importService.updateProductPrices(importData);
-            result.updatedProducts = priceUpdateResult.updatedProducts;
-          }
-
-          setImportResult(result);
-        } catch (error) {
-          setImportResult({
-            success: false,
-            materialUsage: [],
-            errors: [error instanceof Error ? error.message : 'An unknown error occurred while processing the file'],
-          });
-        }
-      };
-
-      reader.onerror = () => {
-        setImportResult({
-          success: false,
-          materialUsage: [],
-          errors: ['Error reading file'],
+          return data;
         });
       };
 
-      reader.readAsText(selectedFile);
+      const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
+      let processedData: any[] = [];
+
+      if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+        const buffer = await selectedFile.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
+        processedData = processImportData(rows);
+      } else {
+        const text = await selectedFile.text();
+        const rows = text.split('\n').map(row => row.split(delimiter));
+        processedData = processImportData(rows);
+      }
+
+      // Store the processed data for later use after product mapping
+      setImportData(processedData);
+
+      const importService = SalesImportService.getInstance();
+      
+      // Get actual products from your state management
+      const products = await importService.getProducts(); // You'll need to implement this
+      setExistingProducts(products);
+
+      // Find unmatched products
+      const productMap = new Map<string, UnmatchedProduct>();
+      processedData.forEach(row => {
+        if (row.product_code && !products.find((p: Product) => p.code === row.product_code)) {
+          const key = row.product_code;
+          if (!productMap.has(key)) {
+            productMap.set(key, {
+              code: row.product_code,
+              name: row.product_name || row.product_code,
+              occurrences: 1
+            });
+          } else {
+            const product = productMap.get(key)!;
+            product.occurrences++;
+          }
+        }
+      });
+
+      const unmatched = Array.from(productMap.values());
+      if (unmatched.length > 0) {
+        setUnmatchedProducts(unmatched);
+        setShowProductMapping(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // If no unmatched products, proceed with import
+      await proceedWithImport(processedData);
+
+    } catch (error) {
+      setImportResult({
+        success: false,
+        materialUsage: [],
+        errors: [error instanceof Error ? error.message : 'An unknown error occurred'],
+      });
+      setIsLoading(false);
+    }
+  };
+
+  const proceedWithImport = async (data: any[], productMappings?: { [key: string]: string }) => {
+    setIsLoading(true);
+    try {
+      const importService = SalesImportService.getInstance();
+      
+      // Apply product mappings if provided
+      const mappedData = data.map(row => {
+        if (productMappings && productMappings[row.product_code]) {
+          return {
+            ...row,
+            product_code: productMappings[row.product_code]
+          };
+        }
+        return row;
+      });
+
+      const result = await importService.importSalesData(mappedData);
+      
+      if (shouldUpdatePrices) {
+        const priceUpdateResult = await importService.updateProductPrices(mappedData);
+        result.updatedProducts = priceUpdateResult.updatedProducts;
+      }
+
+      setImportResult(result);
     } catch (error) {
       setImportResult({
         success: false,
@@ -167,6 +257,20 @@ export default function FileImportSection() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCreateNewProducts = async (products: UnmatchedProduct[]) => {
+    try {
+      const importService = SalesImportService.getInstance();
+      await importService.createProducts(products.map(p => ({
+        code: p.code,
+        name: p.name,
+        // Add any other required product fields with default values
+      })));
+    } catch (error) {
+      console.error('Error creating new products:', error);
+      // Handle error appropriately
     }
   };
 
@@ -187,10 +291,10 @@ export default function FileImportSection() {
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 <Upload className="w-8 h-8 mb-3 text-gray-400" />
                 <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                  {selectedFile ? selectedFile.name : 'برای آپلود ف��یل کلیک کنید یا فایل را بکشید و رها کنید'}
+                  {selectedFile ? selectedFile.name : 'برای آپلود فایل کلیک کنید یا فایل را بکشید و رها کنید'}
                 </p>
               </div>
-              <input type="file" className="hidden" onChange={handleFileSelect} accept=".csv,.txt" />
+              <input type="file" className="hidden" onChange={handleFileSelect} accept=".csv,.txt,.xlsx,.xls" />
             </label>
           </div>
         </div>
@@ -242,29 +346,54 @@ export default function FileImportSection() {
         {/* Column Mapping */}
         {previewData.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">
-              تنظیم ستون‌ها
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-800 dark:text-white">
+                تنظیم ستون‌ها
+              </h3>
+              <button
+                onClick={() => setShowSampleData(!showSampleData)}
+                className="flex items-center gap-2 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 rounded-lg"
+              >
+                <Eye className="h-4 w-4" />
+                {showSampleData ? 'پنهان کردن نمونه‌ها' : 'نمایش نمونه‌ها'}
+              </button>
+            </div>
             <div className="space-y-3">
               {columnMappings.map((mapping, index) => (
-                <div key={index} className="flex items-center gap-4">
-                  <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[150px]">
-                    {mapping.fileColumn}
-                  </span>
-                  <select
-                    value={mapping.appColumn}
-                    onChange={(e) => {
-                      const newMappings = [...columnMappings];
-                      newMappings[index].appColumn = e.target.value;
-                      setColumnMappings(newMappings);
-                    }}
-                    className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">انتخاب کنید</option>
-                    {appColumns.map(col => (
-                      <option key={col.value} value={col.value}>{col.label}</option>
-                    ))}
-                  </select>
+                <div key={index} className="space-y-2">
+                  <div className="flex items-center gap-4">
+                    <div className="min-w-[150px]">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {mapping.fileColumn}
+                      </span>
+                      {showSampleData && (
+                        <div className="mt-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            نمونه: {mapping.sampleData[0]}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <select
+                      value={mapping.appColumn}
+                      onChange={(e) => {
+                        const newMappings = [...columnMappings];
+                        newMappings[index].appColumn = e.target.value;
+                        setColumnMappings(newMappings);
+                      }}
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">انتخاب کنید</option>
+                      {appColumns.map(col => (
+                        <option key={col.value} value={col.value}>{col.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {showSampleData && mapping.sampleData.length > 1 && (
+                    <div className="pl-[150px] text-xs text-gray-500 dark:text-gray-400">
+                      سایر نمونه‌ها: {mapping.sampleData.slice(1).join(', ')}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -401,6 +530,26 @@ export default function FileImportSection() {
           </div>
         )}
       </div>
+
+      {showProductMapping && (
+        <ProductMappingDialog
+          unmatchedProducts={unmatchedProducts}
+          existingProducts={existingProducts}
+          onSave={async (mappings: { [key: string]: string }) => {
+            setShowProductMapping(false);
+            await proceedWithImport(importData, mappings);
+          }}
+          onCancel={() => {
+            setShowProductMapping(false);
+            setImportResult({
+              success: false,
+              materialUsage: [],
+              errors: ['Import cancelled due to unmatched products'],
+            });
+          }}
+          onCreateNew={handleCreateNewProducts}
+        />
+      )}
     </div>
   );
 } 

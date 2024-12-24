@@ -125,16 +125,46 @@ export default function SalesAnalyticsSection() {
           <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-6">
             روند فروش و مصرف مواد اولیه
           </h3>
-          <div className="h-80">
+          <div className="h-[500px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={salesData}>
+              <LineChart 
+                data={salesData}
+                margin={{ top: 30, right: 50, left: 50, bottom: 80 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="sales" name="فروش" stroke="#0088FE" />
-                <Line type="monotone" dataKey="materials" name="مصرف مواد" stroke="#00C49F" />
+                <XAxis 
+                  dataKey="date" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={140} 
+                  interval={0}
+                  tick={{ fontSize: 14 }}
+                  tickMargin={50}
+                />
+                <YAxis 
+                  width={140}
+                  tickFormatter={(value) => value.toLocaleString()} 
+                  tick={{ fontSize: 14 }}
+                  tickMargin={25}
+                  domain={['auto', 'auto']}
+                />
+                <Tooltip 
+                  formatter={(value) => value.toLocaleString() + ' ریال'} 
+                  labelStyle={{ fontFamily: 'inherit' }}
+                  contentStyle={{ textAlign: 'right', fontSize: '14px' }}
+                />
+                <Legend 
+                  wrapperStyle={{ 
+                    paddingTop: '50px',
+                    marginTop: '30px',
+                    textAlign: 'right',
+                    fontSize: '14px'
+                  }}
+                  verticalAlign="bottom"
+                  height={50}
+                />
+                <Line type="monotone" dataKey="sales" name="فروش" stroke="#0088FE" strokeWidth={2} />
+                <Line type="monotone" dataKey="materials" name="مصرف مواد" stroke="#00C49F" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -145,16 +175,37 @@ export default function SalesAnalyticsSection() {
           <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-6">
             توزیع فروش محصولات
           </h3>
-          <div className="h-80">
+          <div className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <RePieChart>
+              <RePieChart margin={{ top: 50, right: 120, left: 120, bottom: 50 }}>
                 <Pie
                   data={productSalesData}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                  outerRadius={80}
+                  labelLine={{ strokeWidth: 1, stroke: '#8884d8', strokeDasharray: "2 2" }}
+                  outerRadius={100}
+                  innerRadius={0}
+                  paddingAngle={5}
+                  label={({ name, percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
+                    const RADIAN = Math.PI / 180;
+                    const radius = outerRadius + 60;
+                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                    
+                    return (
+                      <text
+                        x={x}
+                        y={y}
+                        fill={COLORS[productSalesData.findIndex(item => item.name === name) % COLORS.length]}
+                        textAnchor={x > cx ? 'start' : 'end'}
+                        dominantBaseline="central"
+                        fontSize={14}
+                        fontWeight="500"
+                      >
+                        {`${name} (${(percent * 100).toFixed(0)}%)`}
+                      </text>
+                    );
+                  }}
                   fill="#8884d8"
                   dataKey="value"
                 >
@@ -162,7 +213,20 @@ export default function SalesAnalyticsSection() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip 
+                  contentStyle={{ textAlign: 'right', fontSize: '14px' }}
+                />
+                <Legend 
+                  layout="vertical" 
+                  align="right" 
+                  verticalAlign="middle"
+                  wrapperStyle={{ 
+                    paddingLeft: '80px',
+                    right: 60,
+                    fontSize: '14px',
+                    textAlign: 'right'
+                  }}
+                />
               </RePieChart>
             </ResponsiveContainer>
           </div>
