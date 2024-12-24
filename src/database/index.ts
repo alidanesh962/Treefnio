@@ -12,6 +12,9 @@ import type {
   ExtendedProductDefinition
 } from '../types';
 
+import type { Product } from '../types/product';
+import type { Material } from '../types/material';
+
 // Step 1: Add this interface and export it
 interface ImportColumnMapping {
   name: number | null;
@@ -797,6 +800,78 @@ class Database {
     if (hasChanges) {
       this.saveProductActiveStatuses(activeStatuses);
     }
+  }
+
+  // Clear Operations
+  clearProducts(): Promise<void> {
+    localStorage.removeItem(PRODUCTS_KEY);
+    localStorage.removeItem(PRODUCT_DEFINITIONS_KEY);
+    localStorage.removeItem(PRODUCT_RECIPES_KEY);
+    localStorage.removeItem(PRODUCT_ACTIVE_STATUSES_KEY);
+    return Promise.resolve();
+  }
+
+  clearMaterials(): Promise<void> {
+    localStorage.removeItem(MATERIALS_KEY);
+    return Promise.resolve();
+  }
+
+  clearRecipes(): Promise<void> {
+    localStorage.removeItem(RECIPES_KEY);
+    return Promise.resolve();
+  }
+
+  clearUnits(): Promise<void> {
+    localStorage.removeItem(MATERIAL_UNITS_KEY);
+    return Promise.resolve();
+  }
+
+  clearSales(): Promise<void> {
+    localStorage.removeItem('sales_data');
+    return Promise.resolve();
+  }
+
+  // Insert Operations
+  insertUnits(units: MaterialUnit[]): Promise<void> {
+    this.saveMaterialUnits(units);
+    return Promise.resolve();
+  }
+
+  insertMaterials(materials: Material[]): Promise<void> {
+    const existingMaterials = this.getMaterials();
+    const convertedMaterials = materials.map(material => ({
+      ...material,
+      type: 'material' as const,
+      department: material.category || 'default',
+      price: material.unitPrice
+    }));
+    const updatedMaterials = [...existingMaterials, ...convertedMaterials];
+    this.saveMaterials(updatedMaterials);
+    return Promise.resolve();
+  }
+
+  insertProducts(products: Product[]): Promise<void> {
+    const existingProducts = this.getProducts();
+    const convertedProducts = products.map(product => ({
+      ...product,
+      type: 'product' as const,
+      department: product.category || 'default'
+    }));
+    const updatedProducts = [...existingProducts, ...convertedProducts];
+    this.saveProducts(updatedProducts);
+    return Promise.resolve();
+  }
+
+  insertRecipes(recipes: ProductRecipe[]): Promise<void> {
+    const existingRecipes = this.getProductRecipes();
+    const updatedRecipes = [...existingRecipes, ...recipes];
+    this.saveProductRecipes(updatedRecipes);
+    return Promise.resolve();
+  }
+
+  insertSales(salesData: { date: string; department: string; totalAmount: number; productId: string; quantity: number; }[]): Promise<void> {
+    localStorage.setItem('sales_data', JSON.stringify(salesData));
+    return Promise.resolve();
   }
 }
 

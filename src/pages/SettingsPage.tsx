@@ -8,7 +8,6 @@ import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
 import AccessControlSection from '../components/settings/AccessControlSection';
 import UserActivitySection from '../components/settings/UserActivitySection';
-import BasicInfoSection from '../components/settings/BasicInfoSection';
 import DataManagementSection from '../components/settings/DataManagementSection';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { useSocket } from '../utils/socketContext';
@@ -261,4 +260,4 @@ export default function SettingsPage() {
       />
     </div>
   );
-}
+} 

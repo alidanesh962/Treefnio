@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, Menu, X, FileText, ChevronLeft, 
-  BarChart2, Download, Filter
+  BarChart2, Package, DollarSign
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
 import SalesReportSection from '../components/reports/SalesReportSection';
+import MaterialsReportSection from '../components/reports/MaterialsReportSection';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { CurrentUser } from '../types';
 
@@ -70,17 +71,36 @@ export default function ReportingPage() {
         <nav className="mt-4">
           <button
             onClick={() => setActiveMenu('sales-report')}
-            className={`flex items-center w-full px-4 py-2 text-right
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
                       ${activeMenu === 'sales-report' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
-            <BarChart2 className="h-5 w-5 ml-2" />
+            <DollarSign className="h-5 w-5" />
             گزارش فروش
-            <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
 
-          {/* Add more report types here */}
+          <button
+            onClick={() => setActiveMenu('materials-report')}
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
+                      ${activeMenu === 'materials-report' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+          >
+            <Package className="h-5 w-5" />
+            گزارش مواد اولیه
+          </button>
+
+          <button
+            onClick={() => setActiveMenu('combined-report')}
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
+                      ${activeMenu === 'combined-report' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+          >
+            <BarChart2 className="h-5 w-5" />
+            گزارش جامع
+          </button>
         </nav>
       </div>
 
@@ -116,9 +136,22 @@ export default function ReportingPage() {
 
         {/* Main Content */}
         <main className="p-8">
-          {activeMenu === 'sales-report' && (
-            <SalesReportSection />
-          )}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+              {activeMenu === 'sales-report' && 'گزارش فروش'}
+              {activeMenu === 'materials-report' && 'گزارش مواد اولیه'}
+              {activeMenu === 'combined-report' && 'گزارش جامع'}
+            </h1>
+            
+            {activeMenu === 'sales-report' && <SalesReportSection />}
+            {activeMenu === 'materials-report' && <MaterialsReportSection />}
+            {activeMenu === 'combined-report' && (
+              <div className="space-y-8">
+                <SalesReportSection />
+                <MaterialsReportSection />
+              </div>
+            )}
+          </div>
         </main>
       </div>
 

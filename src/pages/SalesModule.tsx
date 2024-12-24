@@ -3,13 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, Menu, X, ShoppingCart, ChevronLeft, 
-  DollarSign, Receipt, Package
+  DollarSign, Receipt, Package, FileUp, BarChart2
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { CurrentUser } from '../types';
+import FileImportSection from '../components/sales/FileImportSection';
+import SalesAnalyticsSection from '../components/sales/SalesAnalyticsSection';
 
 export default function SalesModule() {
   const navigate = useNavigate();
@@ -69,38 +71,57 @@ export default function SalesModule() {
         <nav className="mt-4">
           <button
             onClick={() => setActiveMenu('new-sale')}
-            className={`flex items-center w-full px-4 py-2 text-right
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
                       ${activeMenu === 'new-sale' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
-            <ShoppingCart className="h-5 w-5 ml-2" />
+            <ShoppingCart className="h-5 w-5" />
             فروش جدید
-            <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
 
           <button
             onClick={() => setActiveMenu('invoices')}
-            className={`flex items-center w-full px-4 py-2 text-right
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
                       ${activeMenu === 'invoices' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
-            <Receipt className="h-5 w-5 ml-2" />
+            <Receipt className="h-5 w-5" />
             فاکتورها
-            <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
 
           <button
             onClick={() => setActiveMenu('products')}
-            className={`flex items-center w-full px-4 py-2 text-right
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
                       ${activeMenu === 'products' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
-            <Package className="h-5 w-5 ml-2" />
+            <Package className="h-5 w-5" />
             محصولات
-            <ChevronLeft className="h-4 w-4 mr-auto" />
+          </button>
+
+          <button
+            onClick={() => setActiveMenu('import')}
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
+                      ${activeMenu === 'import' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+          >
+            <FileUp className="h-5 w-5" />
+            ورود اطلاعات
+          </button>
+
+          <button
+            onClick={() => setActiveMenu('analytics')}
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
+                      ${activeMenu === 'analytics' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+          >
+            <BarChart2 className="h-5 w-5" />
+            گزارش‌ها و تحلیل
           </button>
         </nav>
       </div>
@@ -137,16 +158,22 @@ export default function SalesModule() {
 
         {/* Main Content */}
         <main className="p-8">
-          {/* Placeholder content - you'll need to implement these components */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
               {activeMenu === 'new-sale' && 'ثبت فروش جدید'}
               {activeMenu === 'invoices' && 'مدیریت فاکتورها'}
               {activeMenu === 'products' && 'مدیریت محصولات'}
+              {activeMenu === 'import' && 'ورود اطلاعات فروش'}
+              {activeMenu === 'analytics' && 'گزارش‌ها و تحلیل فروش'}
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              این بخش در حال توسعه است...
-            </p>
+            
+            {activeMenu === 'import' && <FileImportSection />}
+            {activeMenu === 'analytics' && <SalesAnalyticsSection />}
+            {(activeMenu === 'new-sale' || activeMenu === 'invoices' || activeMenu === 'products') && (
+              <p className="text-gray-600 dark:text-gray-400">
+                این بخش در حال توسعه است...
+              </p>
+            )}
           </div>
         </main>
       </div>
