@@ -15,10 +15,12 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { formatToJalali, formatToJalaliInput, parseJalaliInput, getCurrentJalaliDate } from '../../utils/dateUtils';
+import { PersianDateInput } from '../common/PersianDateInput';
 
 // Sample data - replace with actual data from your backend
 const salesData = [
-  { date: '1402/08/01', sales: 1200000, materials: 450000 },
+  { date: getCurrentJalaliDate(), sales: 1200000, materials: 450000 },
   { date: '1402/08/02', sales: 1500000, materials: 600000 },
   { date: '1402/08/03', sales: 900000, materials: 350000 },
   { date: '1402/08/04', sales: 1800000, materials: 700000 },
@@ -36,7 +38,16 @@ const productSalesData = [
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function SalesAnalyticsSection() {
-  const [dateRange, setDateRange] = useState<[string, string]>(['', '']);
+  const [dateRange, setDateRange] = useState<[string, string]>([
+    getCurrentJalaliDate(),
+    getCurrentJalaliDate()
+  ]);
+
+  const handleDateChange = (index: number, value: string) => {
+    const newDateRange = [...dateRange] as [string, string];
+    newDateRange[index] = value;
+    setDateRange(newDateRange);
+  };
 
   return (
     <div className="space-y-6">
@@ -55,20 +66,20 @@ export default function SalesAnalyticsSection() {
           </button>
         </div>
         <div className="flex gap-4">
-          <input
-            type="date"
+          <PersianDateInput
             value={dateRange[0]}
-            onChange={(e) => setDateRange([e.target.value, dateRange[1]])}
+            onChange={(value) => handleDateChange(0, value)}
             className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                      bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            placeholder="از تاریخ"
           />
           <span className="text-gray-500 dark:text-gray-400 self-center">تا</span>
-          <input
-            type="date"
+          <PersianDateInput
             value={dateRange[1]}
-            onChange={(e) => setDateRange([dateRange[0], e.target.value])}
+            onChange={(value) => handleDateChange(1, value)}
             className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                      bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            placeholder="تا تاریخ"
           />
         </div>
       </div>

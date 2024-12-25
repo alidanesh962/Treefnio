@@ -3,13 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, Menu, X, FileText, ChevronLeft, 
-  BarChart2, Package, DollarSign
+  BarChart2, Package, DollarSign, PieChart
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
 import SalesReportSection from '../components/reports/SalesReportSection';
 import MaterialsReportSection from '../components/reports/MaterialsReportSection';
+import BostonReport from './reports/BostonReport';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { CurrentUser } from '../types';
 
@@ -92,6 +93,17 @@ export default function ReportingPage() {
           </button>
 
           <button
+            onClick={() => setActiveMenu('boston-report')}
+            className={`flex items-center w-full px-4 py-2 text-right gap-2
+                      ${activeMenu === 'boston-report' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+          >
+            <PieChart className="h-5 w-5" />
+            ماتریس بوستون
+          </button>
+
+          <button
             onClick={() => setActiveMenu('combined-report')}
             className={`flex items-center w-full px-4 py-2 text-right gap-2
                       ${activeMenu === 'combined-report' 
@@ -140,11 +152,13 @@ export default function ReportingPage() {
             <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
               {activeMenu === 'sales-report' && 'گزارش فروش'}
               {activeMenu === 'materials-report' && 'گزارش مواد اولیه'}
+              {activeMenu === 'boston-report' && 'ماتریس بوستون'}
               {activeMenu === 'combined-report' && 'گزارش جامع'}
             </h1>
             
             {activeMenu === 'sales-report' && <SalesReportSection />}
             {activeMenu === 'materials-report' && <MaterialsReportSection />}
+            {activeMenu === 'boston-report' && <BostonReport />}
             {activeMenu === 'combined-report' && (
               <div className="space-y-8">
                 <SalesReportSection />

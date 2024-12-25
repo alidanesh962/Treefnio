@@ -41,6 +41,8 @@ export default function FileImportSection() {
   const [showProductMapping, setShowProductMapping] = useState(false);
   const [existingProducts, setExistingProducts] = useState<Product[]>([]);
   const [importData, setImportData] = useState<any[]>([]);
+  const [datasetName, setDatasetName] = useState('');
+  const [setAsReference, setSetAsReference] = useState(false);
 
   const appColumns = [
     { value: 'product_code', label: 'کد محصول' },
@@ -131,7 +133,7 @@ export default function FileImportSection() {
   };
 
   const handleImport = async () => {
-    if (!selectedFile || columnMappings.length === 0) return;
+    if (!selectedFile || columnMappings.length === 0 || !datasetName) return;
 
     setIsLoading(true);
     setImportResult(null);
@@ -183,7 +185,7 @@ export default function FileImportSection() {
       const importService = SalesImportService.getInstance();
       
       // Get actual products from your state management
-      const products = await importService.getProducts(); // You'll need to implement this
+      const products = await importService.getProducts();
       setExistingProducts(products);
 
       // Find unmatched products
@@ -241,11 +243,15 @@ export default function FileImportSection() {
         return row;
       });
 
-      const result = await importService.importSalesData(mappedData);
+      const result = await importService.importSalesData(mappedData, datasetName);
       
       if (shouldUpdatePrices) {
         const priceUpdateResult = await importService.updateProductPrices(mappedData);
         result.updatedProducts = priceUpdateResult.updatedProducts;
+      }
+
+      if (setAsReference && result.datasetId) {
+        await importService.setReferenceDataset(result.datasetId);
       }
 
       setImportResult(result);
@@ -421,11 +427,39 @@ export default function FileImportSection() {
           </div>
         </div>
 
+        {/* Dataset Name Input */}
+        <div className="mb-6">
+          <div className="flex items-center gap-4">
+            <input
+              type="text"
+              value={datasetName}
+              onChange={(e) => setDatasetName(e.target.value)}
+              placeholder="نام مجموعه داده"
+              className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
+        </div>
+
+        {/* Set as Reference Checkbox */}
+        <div className="mb-6">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={setAsReference}
+              onChange={(e) => setSetAsReference(e.target.checked)}
+              className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              تنظیم به عنوان مجموعه داده مرجع
+            </span>
+          </label>
+        </div>
+
         {/* Import Button */}
         <div className="mb-6">
           <button
             onClick={handleImport}
-            disabled={isLoading || !selectedFile || columnMappings.length === 0}
+            disabled={isLoading || !selectedFile || columnMappings.length === 0 || !datasetName}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg disabled:opacity-50"
           >
             {isLoading ? (

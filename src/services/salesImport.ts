@@ -1,10 +1,18 @@
-import { Product, Material } from '../types';
+import { Product, Material, Item } from '../types';
+import { db } from '../database';
 
 interface ImportResult {
   success: boolean;
   materialUsage: { materialId: string; quantity: number; }[];
   errors: string[];
   updatedProducts?: string[];
+  datasetId?: string;
+}
+
+interface Dataset {
+  id: string;
+  name: string;
+  importDate: number;
 }
 
 export class SalesImportService {
@@ -44,14 +52,16 @@ export class SalesImportService {
     this.products = [...this.products, ...newProducts];
   }
 
-  async importSalesData(data: any[]): Promise<ImportResult> {
+  async importSalesData(data: any[], name: string): Promise<ImportResult> {
     try {
-      // TODO: Implement actual sales data import logic
+      const datasetId = await db.insertSales(data, name);
+      
       return {
         success: true,
         materialUsage: [],
         errors: [],
-        updatedProducts: []
+        updatedProducts: [],
+        datasetId
       };
     } catch (error) {
       return {
@@ -63,12 +73,47 @@ export class SalesImportService {
     }
   }
 
+  async setReferenceDataset(datasetId: string | null): Promise<void> {
+    db.setReferenceDataset(datasetId);
+  }
+
+  async getReferenceDataset(): Promise<string | null> {
+    return db.getReferenceDataset();
+  }
+
+  async getDatasets(): Promise<Dataset[]> {
+    const datasets = db.getSalesDatasets();
+    return datasets.map(({ id, name, importDate }) => ({ id, name, importDate }));
+  }
+
   async updateProductPrices(data: any[]): Promise<{
     updatedProducts: string[];
   }> {
-    // TODO: Implement actual price update logic
+    const products = await this.getProducts();
+    const updatedProducts: string[] = [];
+
+    // Update prices based on the imported data
+    for (const row of data) {
+      const product = products.find(p => p.code === row.product_code);
+      if (product && row.price) {
+        // Update product price
+        product.price = row.price;
+        updatedProducts.push(product.id);
+      }
+    }
+
+    // Save updated products
+    if (updatedProducts.length > 0) {
+      const itemProducts: Item[] = products.map(p => ({
+        ...p,
+        type: 'product' as const,
+        department: p.category || 'default'
+      }));
+      await db.saveProducts(itemProducts);
+    }
+
     return {
-      updatedProducts: []
+      updatedProducts
     };
   }
 } 

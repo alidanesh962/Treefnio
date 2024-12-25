@@ -1,76 +1,45 @@
 // src/components/settings/ActivityFilters.tsx
 import React from 'react';
-import { Filter } from 'lucide-react';
-import moment from 'moment-jalaali';
+import { PersianDateInput } from '../common/PersianDateInput';
+import { formatToJalali, parseJalali, getCurrentJalaliDate } from '../../utils/dateUtils';
 
 interface ActivityFiltersProps {
-  dateRange: [Date | null, Date | null];
-  activityType: 'all' | 'login' | 'logout';
-  onDateRangeChange: (range: [Date | null, Date | null]) => void;
-  onActivityTypeChange: (type: 'all' | 'login' | 'logout') => void;
+  dateRange: [string, string];
+  onDateRangeChange: (range: [string, string]) => void;
 }
 
-const ActivityFilters: React.FC<ActivityFiltersProps> = ({
+export const ActivityFilters: React.FC<ActivityFiltersProps> = ({
   dateRange,
-  activityType,
   onDateRangeChange,
-  onActivityTypeChange
 }) => {
-  const [startDate, endDate] = dateRange;
+  const handleDateChange = (index: number, value: string) => {
+    const newRange = [...dateRange] as [string, string];
+    newRange[index] = value;
+    onDateRangeChange(newRange);
+  };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Filter className="h-5 w-5 text-gray-400" />
-        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">فیلترها</h4>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Date Range */}
-        <div className="space-y-2">
-          <label className="block text-sm text-gray-600 dark:text-gray-400">بازه زمانی</label>
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={startDate ? moment(startDate).format('YYYY-MM-DD') : ''}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                onDateRangeChange([date, endDate]);
-              }}
-              className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-            />
-            <span className="text-gray-500 dark:text-gray-400 self-center">تا</span>
-            <input
-              type="date"
-              value={endDate ? moment(endDate).format('YYYY-MM-DD') : ''}
-              onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                onDateRangeChange([startDate, date]);
-              }}
-              className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-            />
-          </div>
-        </div>
-
-        {/* Activity Type */}
-        <div className="space-y-2">
-          <label className="block text-sm text-gray-600 dark:text-gray-400">نوع فعالیت</label>
-          <select
-            value={activityType}
-            onChange={(e) => onActivityTypeChange(e.target.value as 'all' | 'login' | 'logout')}
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+    <div className="flex flex-col space-y-4">
+      <div className="flex items-center space-x-4">
+        <label className="text-gray-700 dark:text-gray-300">بازه زمانی:</label>
+        <div className="flex items-center space-x-2">
+          <PersianDateInput
+            value={dateRange[0]}
+            onChange={(value) => handleDateChange(0, value)}
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                      bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="all">همه</option>
-            <option value="login">ورود</option>
-            <option value="logout">خروج</option>
-          </select>
+            placeholder="از تاریخ"
+          />
+          <span className="text-gray-500 dark:text-gray-400">تا</span>
+          <PersianDateInput
+            value={dateRange[1]}
+            onChange={(value) => handleDateChange(1, value)}
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                     bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            placeholder="تا تاریخ"
+          />
         </div>
       </div>
     </div>
   );
 };
-
-export default ActivityFilters;

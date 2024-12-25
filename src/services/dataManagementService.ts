@@ -129,6 +129,28 @@ export class DataManagementService {
           isActive: true,
           createdAt: currentDate,
           updatedAt: currentDate
+        },
+        {
+          id: 'special-cake',
+          name: 'کیک مخصوص',
+          code: 'SC001',
+          description: 'کیک مخصوص با تزیین ویژه',
+          price: 650000,
+          category: 'dessert',
+          isActive: true,
+          createdAt: currentDate,
+          updatedAt: currentDate
+        },
+        {
+          id: 'fruit-cake',
+          name: 'کیک میوه‌ای',
+          code: 'FC001',
+          description: 'کیک با تزیین میوه‌های تازه',
+          price: 550000,
+          category: 'dessert',
+          isActive: true,
+          createdAt: currentDate,
+          updatedAt: currentDate
         }
       ];
       await db.insertProducts(products);
@@ -161,28 +183,89 @@ export class DataManagementService {
           isActive: true,
           createdAt: Date.now(),
           updatedAt: Date.now()
+        },
+        {
+          id: 'special-cake-recipe',
+          productId: 'special-cake',
+          name: 'دستور پخت کیک مخصوص',
+          materials: [
+            { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000 },
+            { materialId: 'sugar', unit: 'kg', amount: 0.4, unitPrice: 200000, totalPrice: 80000 },
+            { materialId: 'milk', unit: 'l', amount: 0.5, unitPrice: 180000, totalPrice: 90000 },
+            { materialId: 'chocolate', unit: 'kg', amount: 0.3, unitPrice: 800000, totalPrice: 240000 }
+          ],
+          isActive: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        },
+        {
+          id: 'fruit-cake-recipe',
+          productId: 'fruit-cake',
+          name: 'دستور پخت کیک میوه‌ای',
+          materials: [
+            { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000 },
+            { materialId: 'sugar', unit: 'kg', amount: 0.2, unitPrice: 200000, totalPrice: 40000 },
+            { materialId: 'milk', unit: 'l', amount: 0.3, unitPrice: 180000, totalPrice: 54000 }
+          ],
+          isActive: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
         }
       ];
       await db.insertRecipes(recipes);
 
       // Generate sample sales data
-      const salesData = [
-        {
-          date: currentDate,
+      const salesData = [];
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 1); // Start from last month
+
+      // Generate daily sales for the past month
+      for (let i = 0; i < 30; i++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + i);
+        
+        // Chocolate cake - Star (high market share, high growth)
+        salesData.push({
+          date: currentDate.toISOString(),
           department: 'cafe',
-          totalAmount: 450000,
+          totalAmount: 450000 + Math.floor(Math.random() * 50000),
           productId: 'chocolate-cake',
-          quantity: 1
-        },
-        {
-          date: currentDate,
+          quantity: 3 + Math.floor(Math.random() * 3)
+        });
+
+        // Vanilla cake - Cash Cow (high market share, low growth)
+        salesData.push({
+          date: currentDate.toISOString(),
           department: 'restaurant',
-          totalAmount: 700000,
+          totalAmount: 350000 + Math.floor(Math.random() * 30000),
           productId: 'vanilla-cake',
-          quantity: 2
+          quantity: 2 + Math.floor(Math.random() * 2)
+        });
+
+        // Special cake - Question Mark (low market share, high growth)
+        if (i >= 15) { // Only in the second half to show growth
+          salesData.push({
+            date: currentDate.toISOString(),
+            department: 'cafe',
+            totalAmount: 650000 + Math.floor(Math.random() * 50000),
+            productId: 'special-cake',
+            quantity: 1 + Math.floor(Math.random() * 2)
+          });
         }
-      ];
-      await db.insertSales(salesData);
+
+        // Fruit cake - Dog (low market share, low growth)
+        if (Math.random() > 0.5) { // Sporadic sales
+          salesData.push({
+            date: currentDate.toISOString(),
+            department: 'restaurant',
+            totalAmount: 550000 + Math.floor(Math.random() * 20000),
+            productId: 'fruit-cake',
+            quantity: 1
+          });
+        }
+      }
+
+      await db.insertSales(salesData, 'Sample Historical Data');
 
       console.log('Sample data has been generated successfully');
     } catch (error) {
@@ -197,7 +280,9 @@ export class DataManagementService {
       const productData = [
         ['کد', 'نام', 'توضیحات', 'قیمت', 'دسته‌بندی'],
         ['CC001', 'کیک شکلاتی', 'کیک شکلاتی خامه‌ای', '450000', 'dessert'],
-        ['VC001', 'کیک وانیلی', 'کیک وانیلی ساده', '350000', 'dessert']
+        ['VC001', 'کیک وانیلی', 'کیک وانیلی ساده', '350000', 'dessert'],
+        ['SC001', 'کیک مخصوص', 'کیک مخصوص با تزیین ویژه', '650000', 'dessert'],
+        ['FC001', 'کیک میوه‌ای', 'کیک با تزیین میوه‌های تازه', '550000', 'dessert']
       ];
       const productWB = XLSX.utils.book_new();
       const productWS = XLSX.utils.aoa_to_sheet(productData);
@@ -221,7 +306,9 @@ export class DataManagementService {
       const salesData = [
         ['تاریخ', 'بخش', 'کد محصول', 'تعداد', 'مبلغ کل'],
         [new Date().toLocaleDateString('fa-IR'), 'cafe', 'CC001', '1', '450000'],
-        [new Date().toLocaleDateString('fa-IR'), 'restaurant', 'VC001', '2', '700000']
+        [new Date().toLocaleDateString('fa-IR'), 'restaurant', 'VC001', '2', '700000'],
+        [new Date().toLocaleDateString('fa-IR'), 'cafe', 'SC001', '3', '650000'],
+        [new Date().toLocaleDateString('fa-IR'), 'restaurant', 'FC001', '4', '550000']
       ];
       const salesWB = XLSX.utils.book_new();
       const salesWS = XLSX.utils.aoa_to_sheet(salesData);

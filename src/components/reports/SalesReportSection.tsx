@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import { ReportingService } from '../../services/reportingService';
 import { db } from '../../database';
+import { PersianDatePicker } from '../common/PersianDatePicker';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -107,20 +108,18 @@ export default function SalesReportSection() {
           <div className="space-y-2">
             <label className="block text-sm text-gray-600 dark:text-gray-400">بازه زمانی</label>
             <div className="flex gap-2">
-              <input
-                type="date"
+              <PersianDatePicker
                 value={dateRange[0]}
-                onChange={(e) => setDateRange([e.target.value, dateRange[1]])}
-                className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                onChange={(date) => setDateRange([date, dateRange[1]])}
+                className="flex-1"
+                placeholder="از تاریخ"
               />
               <span className="text-gray-500 dark:text-gray-400 self-center">تا</span>
-              <input
-                type="date"
+              <PersianDatePicker
                 value={dateRange[1]}
-                onChange={(e) => setDateRange([dateRange[0], e.target.value])}
-                className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                onChange={(date) => setDateRange([dateRange[0], date])}
+                className="flex-1"
+                placeholder="تا تاریخ"
               />
             </div>
           </div>

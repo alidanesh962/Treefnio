@@ -14,6 +14,12 @@ import type {
 
 import type { Product } from '../types/product';
 import type { Material } from '../types/material';
+import {
+  convertToJalaliTimestamp,
+  convertFromJalaliTimestamp,
+  convertToJalaliString,
+  getCurrentJalaliTimestamp
+} from './dateUtils';
 
 // Step 1: Add this interface and export it
 interface ImportColumnMapping {
@@ -37,7 +43,24 @@ const MATERIAL_UNITS_KEY = 'restaurant_material_units';
 const PRODUCTION_BATCHES_KEY = 'restaurant_production_batches';
 const PRODUCT_ACTIVE_STATUSES_KEY = 'product_active_statuses';
 
-class Database {
+// Constants for new storage keys
+const SALES_DATASETS_KEY = 'sales_datasets';
+const REFERENCE_DATASET_KEY = 'reference_dataset';
+
+interface SalesDataset {
+  id: string;
+  name: string;
+  importDate: number;
+  data: Array<{
+    date: string;
+    department: string;
+    totalAmount: number;
+    productId: string;
+    quantity: number;
+  }>;
+}
+
+export class Database {
   [x: string]: any;
 
   // Products Operations
@@ -58,7 +81,7 @@ class Database {
     const products = this.getProducts();
     const newProduct: Item = {
       ...product,
-      id: Date.now().toString()
+      id: getCurrentJalaliTimestamp().toString()
     };
     products.push(newProduct);
     this.saveProducts(products);
@@ -132,7 +155,7 @@ class Database {
     product: Omit<ProductDefinition, 'id' | 'createdAt' | 'updatedAt'> & { autoGenerateCode?: boolean }
   ): ProductDefinition {
     const products = this.getProductDefinitions();
-    const now = Date.now();
+    const now = getCurrentJalaliTimestamp();
 
     const productCode = product.autoGenerateCode 
       ? this.generateNextProductCode()
@@ -172,7 +195,7 @@ class Database {
         saleDepartment: product.saleDepartment,
         productionSegment: product.productionSegment,
         createdAt: product.createdAt,
-        updatedAt: Date.now()
+        updatedAt: getCurrentJalaliTimestamp()
       };
 
       const updatedProducts = products.map(p => 
@@ -406,7 +429,8 @@ class Database {
 
   addProductRecipe(recipe: Omit<ProductRecipe, 'id' | 'createdAt' | 'updatedAt' | 'isActive'>): ProductRecipe {
     const recipes = this.getProductRecipes();
-    const now = Date.now();
+    const now = getCurrentJalaliTimestamp();
+
     const newRecipe: ProductRecipe = {
       ...recipe,
       id: now.toString(),
@@ -414,6 +438,7 @@ class Database {
       updatedAt: now,
       isActive: false
     };
+
     recipes.push(newRecipe);
     this.saveProductRecipes(recipes);
     return newRecipe;
@@ -434,7 +459,7 @@ class Database {
     updatedRecipes[recipeIndex] = {
       ...updatedRecipes[recipeIndex],
       isActive: true,
-      updatedAt: Date.now()
+      updatedAt: getCurrentJalaliTimestamp()
     };
 
     this.saveProductRecipes(updatedRecipes);
@@ -456,7 +481,7 @@ class Database {
 
     recipes[index] = {
       ...recipe,
-      updatedAt: Date.now()
+      updatedAt: getCurrentJalaliTimestamp()
     };
     
     this.saveProductRecipes(recipes);
@@ -482,7 +507,7 @@ class Database {
           filteredRecipes[newActiveIndex] = {
             ...filteredRecipes[newActiveIndex],
             isActive: true,
-            updatedAt: Date.now()
+            updatedAt: getCurrentJalaliTimestamp()
           };
         }
       }
@@ -827,7 +852,8 @@ class Database {
   }
 
   clearSales(): Promise<void> {
-    localStorage.removeItem('sales_data');
+    localStorage.removeItem(SALES_DATASETS_KEY);
+    localStorage.removeItem(REFERENCE_DATASET_KEY);
     return Promise.resolve();
   }
 
@@ -869,9 +895,43 @@ class Database {
     return Promise.resolve();
   }
 
-  insertSales(salesData: { date: string; department: string; totalAmount: number; productId: string; quantity: number; }[]): Promise<void> {
-    localStorage.setItem('sales_data', JSON.stringify(salesData));
-    return Promise.resolve();
+  insertSales(salesData: { date: string; department: string; totalAmount: number; productId: string; quantity: number; }[], name: string): Promise<string> {
+    const datasets = this.getSalesDatasets();
+    const newDataset: SalesDataset = {
+      id: getCurrentJalaliTimestamp().toString(),
+      name,
+      importDate: getCurrentJalaliTimestamp(),
+      data: salesData.map(item => ({
+        ...item,
+        date: convertToJalaliString(item.date)
+      }))
+    };
+    
+    datasets.push(newDataset);
+    this.saveSalesDatasets(datasets);
+    return Promise.resolve(newDataset.id);
+  }
+
+  // Sales Dataset Operations
+  getSalesDatasets(): SalesDataset[] {
+    const stored = localStorage.getItem(SALES_DATASETS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  saveSalesDatasets(datasets: SalesDataset[]): void {
+    localStorage.setItem(SALES_DATASETS_KEY, JSON.stringify(datasets));
+  }
+
+  getReferenceDataset(): string | null {
+    return localStorage.getItem(REFERENCE_DATASET_KEY);
+  }
+
+  setReferenceDataset(datasetId: string | null): void {
+    if (datasetId) {
+      localStorage.setItem(REFERENCE_DATASET_KEY, datasetId);
+    } else {
+      localStorage.removeItem(REFERENCE_DATASET_KEY);
+    }
   }
 }
 
