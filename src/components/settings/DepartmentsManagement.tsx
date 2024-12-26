@@ -3,6 +3,8 @@ import { Plus, Edit2, Trash2, Save, X, AlertCircle } from 'lucide-react';
 import { db } from '../../database';
 import { Department } from '../../types';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
+import { logUserActivity } from '../../utils/userActivity';
+import { getCurrentUser } from '../../utils/auth';
 
 interface DepartmentFormData {
   name: string;
@@ -108,6 +110,7 @@ export default function DepartmentsManagement() {
     if (!validate()) return;
 
     const trimmedName = formData.name.trim();
+    const user = getCurrentUser();
 
     if (editingDepartment) {
       // Check if this is the last department of its type before allowing type change
@@ -129,8 +132,27 @@ export default function DepartmentsManagement() {
         name: trimmedName,
         type: formData.type
       });
+      
+      if (user) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'edit',
+          'departments',
+          `Updated department "${trimmedName}"`
+        );
+      }
     } else {
       db.addDepartment(trimmedName, formData.type);
+      if (user) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'create',
+          'departments',
+          `Created new department "${trimmedName}"`
+        );
+      }
     }
 
     loadDepartments();
@@ -173,6 +195,16 @@ export default function DepartmentsManagement() {
       */
 
       db.deleteDepartment(showDeleteConfirm.departmentId);
+      const user = getCurrentUser();
+      if (user) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'delete',
+          'departments',
+          `Deleted department "${departmentToDelete.name}"`
+        );
+      }
       loadDepartments();
     }
     setShowDeleteConfirm({ isOpen: false, departmentId: '', departmentName: '' });

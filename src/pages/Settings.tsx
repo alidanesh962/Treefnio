@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Menu, X, Users, ChevronLeft, History, Database
+  LogOut, Menu, X, Users, ChevronLeft, History, Database, Settings as SettingsIcon
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
@@ -30,7 +30,7 @@ export default function SettingsPage() {
   const { socket } = useSocket();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(getCurrentUser());
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const [activeMenu, setActiveMenu] = useState('data-management');
+  const [activeMenu, setActiveMenu] = useState('basic-info');
   const [users, setUsers] = useState<IUser[]>([]);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
@@ -198,6 +198,18 @@ export default function SettingsPage() {
             فعالیت کاربران
             <ChevronLeft className="h-4 w-4 mr-auto" />
           </button>
+
+          <button
+            onClick={() => setActiveMenu('basic-info')}
+            className={`flex items-center w-full px-4 py-2 text-right
+                      ${activeMenu === 'basic-info' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+          >
+            <SettingsIcon className="h-5 w-5 ml-2" />
+            اطلاعات پایه
+            <ChevronLeft className="h-4 w-4 mr-auto" />
+          </button>
         </nav>
       </div>
 
@@ -233,6 +245,7 @@ export default function SettingsPage() {
 
         {/* Main Content */}
         <main className="p-8">
+          {activeMenu === 'basic-info' && <BasicInfoSection />}
           {activeMenu === 'data-management' && <DataManagementSection />}
           {activeMenu === 'access-control' && (
             <AccessControlSection

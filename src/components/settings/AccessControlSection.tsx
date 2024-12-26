@@ -12,7 +12,7 @@ interface AccessControlSectionProps {
 }
 
 const AccessControlSection: React.FC<AccessControlSectionProps> = ({
-  users,
+  users = [],
   onUpdateUser,
   onDeleteUser,
   onAddUser,
@@ -32,24 +32,58 @@ const AccessControlSection: React.FC<AccessControlSectionProps> = ({
     userId: string | null;
     username: string;
   }>({ isOpen: false, userId: null, username: '' });
+  const [error, setError] = useState<string>('');
 
   const handleStartEditing = (user: IUser) => {
+    if (!user?._id) return;
     setEditingUser({ ...user, newPassword: '' });
   };
 
-  const handleUpdateUser = () => {
-    if (editingUser) {
+  const handleUpdateUser = async () => {
+    try {
+      if (!editingUser?._id) return;
+      
+      if (!editingUser.username || !editingUser.name) {
+        setError('لطفا تمام فیلدها را پر کنید');
+        return;
+      }
+
       const updatedUser: IUser = {
         ...editingUser,
         password: editingUser.newPassword || editingUser.password
       };
-      onUpdateUser(updatedUser);
+      await onUpdateUser(updatedUser);
       setEditingUser(null);
+      setError('');
+    } catch (error) {
+      console.error('Error updating user:', error);
+      setError('خطا در بروزرسانی کاربر');
     }
   };
 
-  const handleAddUser = () => {
-    onAddUser(newUser);
+  const handleAddUser = async () => {
+    try {
+      setError('');
+      if (!newUser.username || !newUser.password || !newUser.name) {
+        setError('لطفا تمام فیلدها را پر کنید');
+        return;
+      }
+      await onAddUser(newUser);
+      setNewUser({
+        username: '',
+        password: '',
+        role: 'staff',
+        name: '',
+        active: true
+      });
+      setShowNewUserForm(false);
+    } catch (error) {
+      console.error('Error adding user:', error);
+      setError('خطا در افزودن کاربر جدید');
+    }
+  };
+
+  const handleStartNewUser = () => {
     setNewUser({
       username: '',
       password: '',
@@ -57,16 +91,35 @@ const AccessControlSection: React.FC<AccessControlSectionProps> = ({
       name: '',
       active: true
     });
-    setShowNewUserForm(false);
+    setShowNewUserForm(true);
+    setError('');
+  };
+
+  const handleDelete = async () => {
+    try {
+      if (!deleteConfirm.userId) return;
+      await onDeleteUser(deleteConfirm.userId);
+      setDeleteConfirm({ isOpen: false, userId: null, username: '' });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      setError('خطا در حذف کاربر');
+    }
   };
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 
+                     text-red-600 dark:text-red-400 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
+      
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">مدیریت کاربران</h2>
         <button
-          onClick={() => setShowNewUserForm(true)}
+          onClick={handleStartNewUser}
           className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-500 text-white rounded-lg 
                      hover:bg-blue-600 transition-colors"
         >
@@ -177,7 +230,7 @@ const AccessControlSection: React.FC<AccessControlSectionProps> = ({
       {/* Users List */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
         <div className="grid gap-4 p-4">
-          {users.map(user => (
+          {users.filter(user => user && user.username).map(user => (
             <div
               key={user._id}
               className="flex items-center justify-between p-4 border border-gray-200 
@@ -240,8 +293,8 @@ const AccessControlSection: React.FC<AccessControlSectionProps> = ({
                     className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                              bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
+                    <option value="staff">کاربر عادی</option>
                     <option value="admin">مدیر</option>
-                    <option value="staff">کاربر</option>
                     <option value="manager">مدیر ارشد</option>
                   </select>
 
@@ -312,12 +365,7 @@ const AccessControlSection: React.FC<AccessControlSectionProps> = ({
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         isOpen={deleteConfirm.isOpen}
-        onConfirm={() => {
-          if (deleteConfirm.userId) {
-            onDeleteUser(deleteConfirm.userId);
-            setDeleteConfirm({ isOpen: false, userId: null, username: '' });
-          }
-        }}
+        onConfirm={handleDelete}
         onCancel={() => setDeleteConfirm({ isOpen: false, userId: null, username: '' })}
         username={deleteConfirm.username}
       />

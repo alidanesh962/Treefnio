@@ -1,17 +1,17 @@
 // src/components/inventory/Recipes.tsx
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, MessageSquare } from 'lucide-react';
 import { db } from '../../database';
-import type { Item } from '../../database/types';
-import { Recipe } from '../../types/recipe';
+import type { Item, MaterialUnit, ProductRecipe } from '../../types';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import RecipeEditDialog from './RecipeEditDialog';
 
 export default function Recipes() {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipes, setRecipes] = useState<ProductRecipe[]>([]);
   const [materials, setMaterials] = useState<Item[]>([]);
   const [products, setProducts] = useState<Item[]>([]);
-  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [units, setUnits] = useState<MaterialUnit[]>([]);
+  const [editingRecipe, setEditingRecipe] = useState<ProductRecipe | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{
     isOpen: boolean;
     id: string;
@@ -26,10 +26,11 @@ export default function Recipes() {
   const loadData = () => {
     setMaterials(db.getMaterials());
     setProducts(db.getProducts());
-    setRecipes(db.getRecipes());
+    setUnits(db.getMaterialUnits());
+    setRecipes(db.getProductRecipes());
   };
 
-  const handleSaveRecipe = (recipe: Recipe) => {
+  const handleSaveRecipe = (recipe: ProductRecipe) => {
     const now = Date.now();
     const updatedRecipe = {
       ...recipe,
@@ -38,18 +39,23 @@ export default function Recipes() {
     };
 
     if (recipe.id) {
-      if (db.updateRecipe(updatedRecipe)) {
+      if (db.updateProductRecipe(updatedRecipe)) {
         setRecipes(recipes.map(r => r.id === recipe.id ? updatedRecipe : r));
       }
     } else {
-      const newRecipe = db.addRecipe(updatedRecipe);
+      const newRecipe = db.addProductRecipe({
+        productId: recipe.productId,
+        name: recipe.name,
+        materials: recipe.materials,
+        notes: recipe.notes
+      });
       setRecipes([...recipes, newRecipe]);
     }
     setEditingRecipe(null);
   };
 
   const handleDeleteRecipe = (id: string) => {
-    if (db.deleteRecipe(id)) {
+    if (db.deleteProductRecipe(id)) {
       setRecipes(recipes.filter(r => r.id !== id));
     }
     setShowDeleteConfirm({ isOpen: false, id: '', name: '' });
@@ -57,7 +63,7 @@ export default function Recipes() {
 
   const filteredRecipes = recipes.filter(recipe => 
     recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    recipe.description.toLowerCase().includes(searchQuery.toLowerCase())
+    (recipe.notes?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -65,16 +71,18 @@ export default function Recipes() {
       {/* Header Section */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-          مدیریت رسپی
+          دیریت رسپی
         </h2>
         <button
           onClick={() => setEditingRecipe({
             id: '',
+            productId: products[0]?.id || '',
             name: '',
-            description: '',
-            ingredients: [],
-            finalProduct: products[0]?.id || '',
-            yield: 1
+            materials: [],
+            notes: '',
+            isActive: false,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
           })}
           className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg
                    hover:bg-blue-600 transition-colors"
@@ -109,7 +117,7 @@ export default function Recipes() {
                   {recipe.name}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {recipe.description}
+                  {recipe.notes}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -132,49 +140,33 @@ export default function Recipes() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  مواد اولیه:
-                </h4>
-                <ul className="space-y-1">
-                  {recipe.ingredients.map(ingredient => {
-                    const material = materials.find(m => m.id === ingredient.materialId);
-                    return (
-                      <li key={ingredient.materialId} 
-                          className="text-sm text-gray-600 dark:text-gray-400">
-                        {material?.name}: {ingredient.quantity} واحد
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  محصول نهایی:
-                </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {products.find(p => p.id === recipe.finalProduct)?.name}
-                  {' - '}
-                  {recipe.yield} واحد
-                </p>
+            <div className="mt-4">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                مواد اولیه:
+              </h4>
+              <div className="space-y-2">
+                {recipe.materials.map((material, index) => {
+                  const materialItem = materials.find(m => m.id === material.materialId);
+                  const unit = units.find(u => u.id === material.unit);
+                  return (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {materialItem?.name || 'Unknown'} - {material.amount} {unit?.symbol || ''}
+                      </span>
+                      {material.note && (
+                        <div className="flex items-center gap-1 text-gray-500">
+                          <MessageSquare className="h-4 w-4" />
+                          <span>{material.note}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
         ))}
       </div>
-
-      {/* Recipe Edit Dialog */}
-      {editingRecipe && (
-        <RecipeEditDialog
-          recipe={editingRecipe}
-          materials={materials}
-          products={products}
-          onSave={handleSaveRecipe}
-          onCancel={() => setEditingRecipe(null)}
-        />
-      )}
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
@@ -183,6 +175,18 @@ export default function Recipes() {
         onConfirm={() => handleDeleteRecipe(showDeleteConfirm.id)}
         onCancel={() => setShowDeleteConfirm({ isOpen: false, id: '', name: '' })}
       />
+
+      {/* Recipe Edit Dialog */}
+      {editingRecipe && (
+        <RecipeEditDialog
+          recipe={editingRecipe}
+          materials={materials}
+          units={units}
+          products={products}
+          onSave={handleSaveRecipe}
+          onCancel={() => setEditingRecipe(null)}
+        />
+      )}
     </div>
   );
 }

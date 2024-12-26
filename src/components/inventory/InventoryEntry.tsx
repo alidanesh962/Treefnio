@@ -6,6 +6,8 @@ import { Item, MaterialUnit, InventoryEntry as InventoryEntryType } from '../../
 import { db } from '../../database';
 import InventoryEntryRow from './InventoryEntryRow';
 import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
+import { logUserActivity } from '../../utils/userActivity';
+import { getCurrentUser } from '../../utils/auth';
 
 interface EntryFormRow {
   materialId: string;
@@ -54,7 +56,11 @@ interface InventoryEntry {
   // Add other entry properties
 }
 
-export default function InventoryEntry() {
+interface InventoryEntryProps {
+  onSuccess?: () => void;
+}
+
+export default function InventoryEntry({ onSuccess }: InventoryEntryProps) {
     const [formData, setFormData] = useState<EntryFormData>({
       rows: [{ ...initialRowState }],
       seller: '',
@@ -192,6 +198,7 @@ export default function InventoryEntry() {
           }
     
           const timestamp = Date.now();
+          const user = getCurrentUser();
           
           // Process each row
           for (const row of formData.rows) {
@@ -228,10 +235,21 @@ export default function InventoryEntry() {
                 lastEntryDate: timestamp
               };
               await db.updateMaterial(updatedMaterial);
+
+              const unit = units.find(u => u.id === row.unit);
+              if (user) {
+                logUserActivity(
+                  user.username,
+                  user.username,
+                  'create',
+                  'inventory',
+                  `Added ${row.quantity} ${unit?.symbol || ''} of "${material.name}" to inventory`
+                );
+              }
             }
           }
     
-          // Reset form after successful submission
+          // Reset form
           setFormData({
             rows: [{ ...initialRowState }],
             seller: '',
@@ -239,16 +257,14 @@ export default function InventoryEntry() {
             invoiceNumber: '',
             documentNumber: ''
           });
-    
-          // Reload material data
-          loadData();
-    
-          // Show success message or notification here if needed
           
-        } catch (error) {
-          console.error('Error submitting entry:', error);
-          setErrors({ submit: 'خطا در ثبت ورودی' });
-        } finally {
+          setIsSubmitting(false);
+          if (typeof onSuccess === 'function') {
+            onSuccess();
+          }
+        } catch (err) {
+          console.error('Error submitting inventory entry:', err);
+          setErrors({ submit: 'خطا در ثبت ورودی انبار' });
           setIsSubmitting(false);
         }
       };

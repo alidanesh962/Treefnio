@@ -54,8 +54,10 @@ export interface User {
 export interface UserActivity {
   id: string;
   username: string;
-  type: 'login' | 'logout';
+  fullName: string;
+  type: 'create' | 'edit' | 'delete' | 'login' | 'logout';
   timestamp: number;
+  module: string;
   details?: string;
 }
 
@@ -177,6 +179,19 @@ export interface MaterialStock {
 
 // Utility Types
 export type DateRange = [Date | null, Date | null];
+
+export interface SalesDataset {
+  id: string;
+  name: string;
+  importDate: number;
+  data: Array<{
+    date: string;
+    department: string;
+    totalAmount: number;
+    productId: string;
+    quantity: number;
+  }>;
+}
 
 export * from './product';
 export * from './material';

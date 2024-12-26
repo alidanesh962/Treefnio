@@ -20,13 +20,19 @@ import {
   CheckSquare,
   Square,
   Grid,
-  LayoutList
+  LayoutList,
+  Star,
+  CircleDollarSign,
+  HelpCircle,
+  AlertOctagon
 } from 'lucide-react';
 import { db } from '../../database';
 import { ProductDefinition, ExtendedProductDefinition } from '../../types';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import ProductDefinitionForm from './ProductDefinitionForm';
 import { exportRecipesToPDF } from '../../utils/newRecipePDFExport';
+import { logUserActivity } from '../../utils/userActivity';
+import { getCurrentUser } from '../../utils/auth';
 
 interface ProductsListProps {
   onProductSelect: (product: ExtendedProductDefinition) => void;
@@ -122,7 +128,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
       setProducts(allProducts);
     } catch (err) {
       console.error('Error loading products:', err);
-      setError('خطا در بارگیری محصولات');
+      setError('خطا در بارگی��ی محصولات');
     } finally {
       setIsLoading(false);
     }
@@ -143,11 +149,23 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
   const handleProductStatus = async (productId: string, status: boolean) => {
     try {
       await db.updateProductStatus(productId, status);
-      setProducts(prev => prev.map(product => 
-        product.id === productId 
-          ? { ...product, isActive: status }
-          : product
+      const product = products.find(p => p.id === productId);
+      setProducts(prev => prev.map(p => 
+        p.id === productId 
+          ? { ...p, isActive: status }
+          : p
       ));
+
+      const user = getCurrentUser();
+      if (user && product) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'edit',
+          'products',
+          `${status ? 'Activated' : 'Deactivated'} product "${product.name}"`
+        );
+      }
     } catch (err) {
       console.error('Error updating product status:', err);
       setError('خطا در بروزرسانی وضعیت محصول');
@@ -385,6 +403,130 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
     return result;
   }, [products, searchQuery, filters, sortConfig]);
 
+  const getBostonCategory = (product: ExtendedProductDefinition) => {
+    try {
+      const salesData = db.getSalesData();
+      if (!salesData || !Array.isArray(salesData) || salesData.length === 0) {
+        console.log('No sales data available');
+        return 'noData';
+      }
+
+      // Calculate market share and growth
+      const productSales = salesData.filter(sale => sale.productId === product.id);
+      if (productSales.length === 0) {
+        console.log('No sales for product:', product.name);
+        return 'noSales';
+      }
+
+      const totalRevenue = salesData.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+      if (totalRevenue === 0) {
+        console.log('Total revenue is 0');
+        return 'noRevenue';
+      }
+
+      const productRevenue = productSales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+      const marketShare = (productRevenue / totalRevenue) * 100;
+
+      // Split data into current and previous periods
+      const midPoint = new Date(salesData[Math.floor(salesData.length / 2)].date);
+      const currentPeriod = productSales.filter(sale => new Date(sale.date) >= midPoint);
+      const previousPeriod = productSales.filter(sale => new Date(sale.date) < midPoint);
+
+      const currentSales = currentPeriod.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
+      const previousSales = previousPeriod.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
+
+      const growthRate = previousSales ? ((currentSales - previousSales) / previousSales) * 100 : 0;
+
+      if (marketShare >= 25 && growthRate >= 10) return 'star';
+      if (marketShare >= 25 && growthRate < 10) return 'cashCow';
+      if (marketShare < 25 && growthRate >= 10) return 'questionMark';
+      return 'dog';
+    } catch (error) {
+      console.error('Error calculating Boston category:', error);
+      return 'error';
+    }
+  };
+
+  const getBostonIcon = (category: string | null) => {
+    const renderIcon = (Icon: any, color: string, label: string, tooltip: string) => (
+      <div className="group relative inline-block">
+        <Icon 
+          className={`h-5 w-5 ${color}`}
+          aria-label={label}
+        />
+        <div className="invisible group-hover:visible absolute z-10 w-48 px-2 py-1 -mt-1 text-sm text-white bg-gray-900 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 -translate-y-full left-1/2 -translate-x-1/2">
+          {tooltip}
+        </div>
+      </div>
+    );
+
+    switch (category) {
+      case 'star':
+        return renderIcon(
+          Star,
+          'text-orange-500',
+          'ستاره',
+          'ستاره: سهم بازار بالا، رشد بالا'
+        );
+      case 'cashCow':
+        return renderIcon(
+          CircleDollarSign,
+          'text-green-500',
+          'گاو شیرده',
+          'گاو شیرده: سهم بازار بالا، رشد پایین'
+        );
+      case 'questionMark':
+        return renderIcon(
+          HelpCircle,
+          'text-purple-500',
+          'علامت سؤال',
+          'علامت سؤال: سهم بازار پایین، رشد بالا'
+        );
+      case 'dog':
+        return renderIcon(
+          AlertOctagon,
+          'text-red-500',
+          'سگ',
+          'سگ: سهم بازار پایین، رشد پایین'
+        );
+      case 'noData':
+        return renderIcon(
+          AlertCircle,
+          'text-gray-400',
+          'بدون داده',
+          'داده‌های فروش موجود نیست'
+        );
+      case 'noSales':
+        return renderIcon(
+          AlertCircle,
+          'text-gray-400',
+          'بدون فروش',
+          'فروشی برای این محصول ثبت نشده است'
+        );
+      case 'noRevenue':
+        return renderIcon(
+          AlertCircle,
+          'text-gray-400',
+          'بدون درآمد',
+          'درآمد کل صفر است'
+        );
+      case 'error':
+        return renderIcon(
+          AlertCircle,
+          'text-gray-400',
+          'خطا',
+          'خطا در محاسبه وضعیت بوستون'
+        );
+      default:
+        return renderIcon(
+          AlertCircle,
+          'text-gray-400',
+          'نامشخص',
+          'وضعیت نامشخص'
+        );
+    }
+  };
+
   const renderGridView = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-full">
@@ -416,9 +558,12 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                   )}
                 </button>
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    {product.name}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                      {product.name}
+                    </h3>
+                    {getBostonIcon(getBostonCategory(product))}
+                  </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     کد: {product.code}
                   </p>
@@ -483,6 +628,17 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                       saleDepartment: e.target.value
                     };
                     db.updateProductDefinition(updatedProduct);
+                    const user = getCurrentUser();
+                    if (user) {
+                      const newDeptName = getDepartmentName(e.target.value, 'sale');
+                      logUserActivity(
+                        user.username,
+                        user.username,
+                        'edit',
+                        'products',
+                        `Updated sale department of product "${product.name}" to "${newDeptName}"`
+                      );
+                    }
                     const newProducts = products.map(p =>
                       p.id === product.id ? updatedProduct : p
                     );
@@ -516,6 +672,17 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                       productionSegment: e.target.value
                     };
                     db.updateProductDefinition(updatedProduct);
+                    const user = getCurrentUser();
+                    if (user) {
+                      const newDeptName = getDepartmentName(e.target.value, 'production');
+                      logUserActivity(
+                        user.username,
+                        user.username,
+                        'edit',
+                        'products',
+                        `Updated production department of product "${product.name}" to "${newDeptName}"`
+                      );
+                    }
                     const newProducts = products.map(p =>
                       p.id === product.id ? updatedProduct : p
                     );
@@ -595,6 +762,9 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                 نام محصول
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                تحلیل بوستون
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 کد
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
@@ -637,6 +807,11 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {product.name}
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex justify-center">
+                    {getBostonIcon(getBostonCategory(product))}
+                  </div>
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {product.code}
                 </td>
@@ -673,6 +848,17 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                         saleDepartment: e.target.value
                       };
                       db.updateProductDefinition(updatedProduct);
+                      const user = getCurrentUser();
+                      if (user) {
+                        const newDeptName = getDepartmentName(e.target.value, 'sale');
+                        logUserActivity(
+                          user.username,
+                          user.username,
+                          'edit',
+                          'products',
+                          `Updated sale department of product "${product.name}" to "${newDeptName}"`
+                        );
+                      }
                       const newProducts = products.map(p =>
                         p.id === product.id ? updatedProduct : p
                       );
@@ -702,6 +888,17 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                         productionSegment: e.target.value
                       };
                       db.updateProductDefinition(updatedProduct);
+                      const user = getCurrentUser();
+                      if (user) {
+                        const newDeptName = getDepartmentName(e.target.value, 'production');
+                        logUserActivity(
+                          user.username,
+                          user.username,
+                          'edit',
+                          'products',
+                          `Updated production department of product "${product.name}" to "${newDeptName}"`
+                        );
+                      }
                       const newProducts = products.map(p =>
                         p.id === product.id ? updatedProduct : p
                       );

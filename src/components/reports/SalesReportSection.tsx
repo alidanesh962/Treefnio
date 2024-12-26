@@ -1,6 +1,6 @@
 // src/components/reports/SalesReportSection.tsx
 import React, { useState, useEffect } from 'react';
-import { BarChart2, Download, Calendar, Filter } from 'lucide-react';
+import { BarChart2, Download } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -23,13 +23,14 @@ import { PersianDatePicker } from '../common/PersianDatePicker';
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function SalesReportSection() {
-  const [dateRange, setDateRange] = useState<[string, string]>(['', '']);
   const [department, setDepartment] = useState('all');
   const [departments, setDepartments] = useState<any[]>([]);
   const [salesData, setSalesData] = useState<any[]>([]);
   const [productDistribution, setProductDistribution] = useState<any[]>([]);
   const [totalSales, setTotalSales] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [datasets, setDatasets] = useState<{ id: string; name: string }[]>([]);
+  const [selectedDataset, setSelectedDataset] = useState<string>('reference');
 
   useEffect(() => {
     // Load available departments for filter
@@ -38,16 +39,28 @@ export default function SalesReportSection() {
       setDepartments(allDepartments);
     };
     loadDepartments();
+
+    // Load available datasets
+    const loadDatasets = () => {
+      const allDatasets = db.getSalesDatasets();
+      setDatasets([
+        { id: 'reference', name: 'داده‌های مرجع' },
+        ...allDatasets.map(ds => ({ id: ds.id, name: ds.name }))
+      ]);
+    };
+    loadDatasets();
   }, []);
 
   useEffect(() => {
     const loadData = async () => {
-      if (!dateRange[0] || !dateRange[1]) return;
-
       setIsLoading(true);
       try {
         const reportingService = ReportingService.getInstance();
-        const data = await reportingService.getSalesData(dateRange[0], dateRange[1]);
+        // Use a date range that covers all data
+        const startDate = new Date(0).toISOString(); // Beginning of time
+        const endDate = new Date().toISOString(); // Current time
+        
+        const data = await reportingService.getSalesData(startDate, endDate, selectedDataset);
 
         let filteredData = data.salesData;
         if (department !== 'all') {
@@ -64,8 +77,10 @@ export default function SalesReportSection() {
       }
     };
 
-    loadData();
-  }, [dateRange, department]);
+    if (selectedDataset) {
+      loadData();
+    }
+  }, [department, selectedDataset]);
 
   const handleDownload = () => {
     // TODO: Implement report download
@@ -106,22 +121,19 @@ export default function SalesReportSection() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="block text-sm text-gray-600 dark:text-gray-400">بازه زمانی</label>
-            <div className="flex gap-2">
-              <PersianDatePicker
-                value={dateRange[0]}
-                onChange={(date) => setDateRange([date, dateRange[1]])}
-                className="flex-1"
-                placeholder="از تاریخ"
-              />
-              <span className="text-gray-500 dark:text-gray-400 self-center">تا</span>
-              <PersianDatePicker
-                value={dateRange[1]}
-                onChange={(date) => setDateRange([dateRange[0], date])}
-                className="flex-1"
-                placeholder="تا تاریخ"
-              />
-            </div>
+            <label className="block text-sm text-gray-600 dark:text-gray-400">مجموعه داده</label>
+            <select
+              value={selectedDataset}
+              onChange={(e) => setSelectedDataset(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              {datasets.map(dataset => (
+                <option key={dataset.id} value={dataset.id}>
+                  {dataset.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="space-y-2">
@@ -164,7 +176,7 @@ export default function SalesReportSection() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="amount" name="مبلغ فروش" stroke="#0088FE" />
+                    <Line type="monotone" dataKey="totalAmount" name="مبلغ فروش" stroke="#0088FE" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -212,6 +224,12 @@ export default function SalesReportSection() {
                       بخش
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      کد محصول
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      تعداد
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       مبلغ (ریال)
                     </th>
                   </tr>
@@ -223,10 +241,16 @@ export default function SalesReportSection() {
                         {sale.date}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {sale.department}
+                        {departments.find(d => d.id === sale.department)?.name || sale.department}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {sale.amount.toLocaleString()}
+                        {sale.product_code || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {sale.quantity}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {sale.totalAmount.toLocaleString()}
                       </td>
                     </tr>
                   ))}
@@ -238,10 +262,7 @@ export default function SalesReportSection() {
       ) : (
         <div className="text-center py-12">
           <p className="text-gray-600 dark:text-gray-400">
-            {dateRange[0] && dateRange[1] 
-              ? 'داده‌ای برای نمایش وجود ندارد'
-              : 'لطفا بازه زمانی را انتخاب کنید'
-            }
+            داده‌ای برای نمایش وجود ندارد
           </p>
         </div>
       )}

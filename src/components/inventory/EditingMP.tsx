@@ -331,138 +331,147 @@ const EditingMP: React.FC = () => {
       </div>
       {/* Advanced Filters */}
       {showAdvancedFilters && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                نام
-              </label>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+          <div className="flex flex-wrap gap-2">
+            {/* Row 1 - Text Filters */}
+            <div className="flex-1 min-w-[200px]">
               <input
                 type="text"
                 value={filters.name}
                 onChange={(e) => handleFilterChange('name', e.target.value)}
+                placeholder="نام"
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                کد
-              </label>
+            <div className="flex-1 min-w-[200px]">
               <input
                 type="text"
                 value={filters.code}
                 onChange={(e) => handleFilterChange('code', e.target.value)}
+                placeholder="کد"
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                بخش
-              </label>
+            <div className="flex-1 min-w-[200px]">
               <input
                 type="text"
                 value={filters.department}
                 onChange={(e) => handleFilterChange('department', e.target.value)}
+                placeholder="بخش"
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                محل نگهداری
-              </label>
+            <div className="flex-1 min-w-[200px]">
               <input
                 type="text"
                 value={filters.location}
                 onChange={(e) => handleFilterChange('location', e.target.value)}
+                placeholder="محل نگهداری"
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                حداقل موجودی
-              </label>
+            {/* Row 2 - Number Inputs */}
+            <div className="flex gap-2 flex-1 min-w-[200px]">
               <input
                 type="number"
                 value={filters.minStock}
                 onChange={(e) => handleFilterChange('minStock', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                placeholder="حداقل موجودی"
+                className="w-1/2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                حداکثر موجودی
-              </label>
               <input
                 type="number"
                 value={filters.maxStock}
                 onChange={(e) => handleFilterChange('maxStock', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                placeholder="حداکثر موجودی"
+                className="w-1/2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                حداقل قیمت
-              </label>
+            <div className="flex gap-2 flex-1 min-w-[200px]">
               <input
                 type="number"
                 value={filters.minPrice}
                 onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                placeholder="حداقل قیمت"
+                className="w-1/2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                حداکثر قیمت
-              </label>
               <input
                 type="number"
                 value={filters.maxPrice}
                 onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                placeholder="حداکثر قیمت"
+                className="w-1/2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                تاریخ انقضا از
-              </label>
+            {/* Row 3 - Date Inputs */}
+            <div className="flex gap-2 flex-1 min-w-[200px]">
               <input
                 type="date"
                 value={filters.expiryDateFrom}
                 onChange={(e) => handleFilterChange('expiryDateFrom', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                className="w-1/2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                تاریخ انقضا تا
-              </label>
               <input
                 type="date"
                 value={filters.expiryDateTo}
                 onChange={(e) => handleFilterChange('expiryDateTo', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                className="w-1/2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
           </div>
+
+          {/* Active Filters Display */}
+          {Object.entries(filters).some(([key, value]) => value !== '' && key !== 'search') && (
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+              {Object.entries(filters).map(([key, value]) => {
+                if (value !== '' && key !== 'search') {
+                  let displayKey = '';
+                  switch(key) {
+                    case 'name': displayKey = 'نام'; break;
+                    case 'code': displayKey = 'کد'; break;
+                    case 'department': displayKey = 'بخش'; break;
+                    case 'location': displayKey = 'محل نگهداری'; break;
+                    case 'minStock': displayKey = 'حداقل موجودی'; break;
+                    case 'maxStock': displayKey = 'حداکثر موجودی'; break;
+                    case 'minPrice': displayKey = 'حداقل قیمت'; break;
+                    case 'maxPrice': displayKey = 'حداکثر قیمت'; break;
+                    case 'expiryDateFrom': displayKey = 'تاریخ انقضا از'; break;
+                    case 'expiryDateTo': displayKey = 'تاریخ انقضا تا'; break;
+                    default: displayKey = key;
+                  }
+                  return (
+                    <span
+                      key={key}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-sm 
+                               bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200"
+                    >
+                      {displayKey}: {value}
+                      <button
+                        onClick={() => handleFilterChange(key as keyof FilterState, '')}
+                        className="hover:text-blue-600 dark:hover:text-blue-400 ml-1"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          )}
         </div>
       )}
       {/* Table Section */}

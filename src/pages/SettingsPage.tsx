@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  LogOut, Menu, X, Users, ChevronLeft, History, Database
+  LogOut, Menu, X, Users, ChevronLeft, History, Database, Settings as SettingsIcon
 } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
 import AccessControlSection from '../components/settings/AccessControlSection';
 import UserActivitySection from '../components/settings/UserActivitySection';
+import BasicInfoSection from '../components/settings/BasicInfoSection';
 import DataManagementSection from '../components/settings/DataManagementSection';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { useSocket } from '../utils/socketContext';
@@ -18,50 +19,54 @@ interface CurrentUser {
   role: string;
 }
 
-interface ApiResponse<T> {
-  data?: T;
-  error?: string;
-  message?: string;
-}
-
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { socket } = useSocket();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(getCurrentUser());
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [activeMenu, setActiveMenu] = useState('data-management');
-  const [users, setUsers] = useState<IUser[]>([]);
+  const [users, setUsers] = useState<IUser[]>(() => {
+    const savedUsers = localStorage.getItem('users');
+    return savedUsers ? JSON.parse(savedUsers) : [{
+      _id: '1',
+      username: 'admin',
+      password: 'admin',
+      role: 'admin',
+      name: 'مدیر سیستم',
+      active: true,
+      createdAt: new Date(),
+    }];
+  });
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch('https://treefnio.vercel.app/api/users', {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const result: ApiResponse<IUser[]> = await response.json();
-        if (result.data) {
-          setUsers(result.data);
-        }
-      } else {
-        console.error('Failed to fetch users');
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
+  useEffect(() => {
+    localStorage.setItem('users', JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchUsers();
     }
-  };
+  }, [currentUser]);
 
   useEffect(() => {
     if (!currentUser) {
       navigate('/login');
-      return;
     }
-    fetchUsers();
   }, [currentUser, navigate]);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('https://treefnio.vercel.app/api/users', {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch users');
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   const handleLogoutClick = () => {
     setShowLogoutDialog(true);
@@ -82,59 +87,32 @@ export default function SettingsPage() {
   };
 
   const handleUpdateUser = async (user: IUser): Promise<void> => {
-    try {
-      const response = await fetch('https://treefnio.vercel.app/api/users', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(user),
-      });
-      if (response.ok) {
-        await fetchUsers();
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-    }
+    setUsers(prevUsers => {
+      const newUsers = prevUsers.map(u => u._id === user._id ? user : u);
+      return newUsers;
+    });
   };
 
   const handleDeleteUser = async (id: string): Promise<void> => {
-    try {
-      const response = await fetch('https://treefnio.vercel.app/api/users', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ id }),
-      });
-      if (response.ok) {
-        await fetchUsers();
-      }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-    }
+    setUsers(prevUsers => {
+      const newUsers = prevUsers.filter(user => user._id !== id);
+      return newUsers;
+    });
   };
 
   const handleAddUser = async (user: NewUser): Promise<void> => {
     try {
-      const response = await fetch('https://treefnio.vercel.app/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(user),
-      });
-      if (response.ok) {
-        await fetchUsers();
-      }
-    } catch (error) {
+      const newUser: IUser = {
+        ...user,
+        _id: Date.now().toString(),
+        active: true,
+        createdAt: new Date(),
+      };
+      
+      setUsers(prevUsers => [...prevUsers, newUser]);
+    } catch (error: any) {
       console.error('Error adding user:', error);
+      throw new Error('خطا در افزودن کاربر جدید');
     }
   };
 
@@ -162,6 +140,18 @@ export default function SettingsPage() {
         </div>
         
         <nav className="mt-4">
+          <button
+            onClick={() => setActiveMenu('basic-info')}
+            className={`flex items-center w-full px-4 py-2 text-right
+                      ${activeMenu === 'basic-info' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+          >
+            <SettingsIcon className="h-5 w-5 ml-2" />
+            اطلاعات پایه
+            <ChevronLeft className="h-4 w-4 mr-auto" />
+          </button>
+
           <button
             onClick={() => setActiveMenu('data-management')}
             className={`flex items-center w-full px-4 py-2 text-right
@@ -232,6 +222,7 @@ export default function SettingsPage() {
 
         {/* Main Content */}
         <main className="p-8">
+          {activeMenu === 'basic-info' && <BasicInfoSection />}
           {activeMenu === 'data-management' && <DataManagementSection />}
           {activeMenu === 'access-control' && (
             <AccessControlSection

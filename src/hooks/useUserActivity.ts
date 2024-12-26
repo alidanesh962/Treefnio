@@ -12,7 +12,10 @@ export const useUserActivity = (selectedUsername?: string) => {
             setLoading(true);
             try {
                 const data = getUserActivities(selectedUsername);
-                setActivities(data);
+                console.log('Fetched activities:', data);
+                // Sort activities by timestamp in descending order
+                const sortedData = data.sort((a, b) => b.timestamp - a.timestamp);
+                setActivities(sortedData);
             } catch (error) {
                 console.error('Error fetching user activities:', error);
             } finally {
@@ -27,6 +30,20 @@ export const useUserActivity = (selectedUsername?: string) => {
         return () => clearInterval(intervalId);
     }, [selectedUsername]);
 
+    const groupedByDate = useMemo(() => {
+        const groups: { [date: string]: UserActivity[] } = {};
+        
+        activities.forEach(activity => {
+            const date = new Date(activity.timestamp).toISOString().split('T')[0];
+            if (!groups[date]) {
+                groups[date] = [];
+            }
+            groups[date].push(activity);
+        });
+
+        return groups;
+    }, [activities]);
+
     const stats = useMemo(() => {
         if (!activities.length) return null;
 
@@ -36,15 +53,21 @@ export const useUserActivity = (selectedUsername?: string) => {
         return {
             total: activities.length,
             today: activities.filter(a => new Date(a.timestamp) >= today).length,
-            logins: activities.filter(a => a.type === 'login').length,
-            logouts: activities.filter(a => a.type === 'logout').length,
+            creates: activities.filter(a => a.type === 'create').length,
+            edits: activities.filter(a => a.type === 'edit').length,
+            deletes: activities.filter(a => a.type === 'delete').length,
         };
     }, [activities]);
 
     return {
         activities,
+        groupedByDate,
         loading,
         stats,
-        refresh: () => setActivities(getUserActivities(selectedUsername))
+        refresh: () => {
+            const data = getUserActivities(selectedUsername);
+            const sortedData = data.sort((a, b) => b.timestamp - a.timestamp);
+            setActivities(sortedData);
+        }
     };
 };

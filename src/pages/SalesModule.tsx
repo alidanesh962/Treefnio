@@ -12,6 +12,7 @@ import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { CurrentUser } from '../types';
 import FileImportSection from '../components/sales/FileImportSection';
 import SalesAnalyticsSection from '../components/sales/SalesAnalyticsSection';
+import ProductsList from '../components/sales/ProductsList';
 
 export default function SalesModule() {
   const navigate = useNavigate();
@@ -92,14 +93,14 @@ export default function SalesModule() {
           </button>
 
           <button
-            onClick={() => setActiveMenu('products')}
+            onClick={() => setActiveMenu('products-list')}
             className={`flex items-center w-full px-4 py-2 text-right gap-2
-                      ${activeMenu === 'products' 
+                      ${activeMenu === 'products-list' 
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
             <Package className="h-5 w-5" />
-            محصولات
+            لیست محصولات
           </button>
 
           <button
@@ -162,14 +163,15 @@ export default function SalesModule() {
             <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
               {activeMenu === 'new-sale' && 'ثبت فروش جدید'}
               {activeMenu === 'invoices' && 'مدیریت فاکتورها'}
-              {activeMenu === 'products' && 'مدیریت محصولات'}
+              {activeMenu === 'products-list' && 'لیست محصولات'}
               {activeMenu === 'import' && 'ورود اطلاعات فروش'}
               {activeMenu === 'analytics' && 'گزارش‌ها و تحلیل فروش'}
             </h1>
             
+            {activeMenu === 'products-list' && <ProductsList />}
             {activeMenu === 'import' && <FileImportSection />}
             {activeMenu === 'analytics' && <SalesAnalyticsSection />}
-            {(activeMenu === 'new-sale' || activeMenu === 'invoices' || activeMenu === 'products') && (
+            {(activeMenu === 'new-sale' || activeMenu === 'invoices') && (
               <p className="text-gray-600 dark:text-gray-400">
                 این بخش در حال توسعه است...
               </p>

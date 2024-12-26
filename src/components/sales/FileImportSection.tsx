@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Save, X, AlertCircle, Check, Eye } from 'lucide-react';
+import { Upload, Save, X, AlertCircle, Check, Eye, Download } from 'lucide-react';
 import { SalesImportService } from '../../services/salesImport';
 import { Product, Material } from '../../types';
 import * as XLSX from 'xlsx';
 import { ProductMappingDialog, UnmatchedProduct } from './ProductMappingDialog';
+import { formatToJalali } from '../../utils/dateUtils';
 
 interface ColumnMapping {
   fileColumn: string;
@@ -25,14 +26,100 @@ interface ImportResult {
   updatedProducts?: string[];
 }
 
+interface Dataset {
+  id: string;
+  name: string;
+  importDate: number;
+  data?: any[];
+}
+
+interface ImportHistoryDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedDataset: Dataset | null;
+  onDownload: () => void;
+}
+
+function ImportHistoryDialog({ isOpen, onClose, selectedDataset, onDownload }: ImportHistoryDialogProps) {
+  if (!isOpen || !selectedDataset) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+            جزئیات مجموعه داده {selectedDataset.name}
+          </h3>
+          <div className="flex gap-2">
+            <button
+              onClick={onDownload}
+              className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            >
+              <Download className="h-5 w-5" />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            تاریخ ورود: {formatToJalali(new Date(selectedDataset.importDate))}
+          </p>
+        </div>
+
+        {selectedDataset.data && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  {Object.keys(selectedDataset.data[0] || {}).map((header) => (
+                    <th
+                      key={header}
+                      className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    >
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {selectedDataset.data.slice(0, 100).map((row, index) => (
+                  <tr key={index}>
+                    {Object.values(row).map((value: any, cellIndex) => (
+                      <td
+                        key={cellIndex}
+                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300"
+                      >
+                        {value?.toString()}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {selectedDataset.data.length > 100 && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-4 text-center">
+                نمایش 100 ردیف اول از {selectedDataset.data.length} ردیف
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function FileImportSection() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<string[][]>([]);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
   const [delimiter, setDelimiter] = useState(',');
   const [hasHeader, setHasHeader] = useState(true);
-  const [savedConfigs, setSavedConfigs] = useState<FileImportConfig[]>([]);
-  const [configName, setConfigName] = useState('');
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [shouldUpdatePrices, setShouldUpdatePrices] = useState(false);
@@ -43,6 +130,9 @@ export default function FileImportSection() {
   const [importData, setImportData] = useState<any[]>([]);
   const [datasetName, setDatasetName] = useState('');
   const [setAsReference, setSetAsReference] = useState(false);
+  const [importHistory, setImportHistory] = useState<Dataset[]>([]);
+  const [selectedHistoryDataset, setSelectedHistoryDataset] = useState<Dataset | null>(null);
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
 
   const appColumns = [
     { value: 'product_code', label: 'کد محصول' },
@@ -51,14 +141,6 @@ export default function FileImportSection() {
     { value: 'price', label: 'قیمت' },
     { value: 'date', label: 'تاریخ' },
   ];
-
-  useEffect(() => {
-    // Load saved configs from localStorage
-    const savedConfigsStr = localStorage.getItem('salesImportConfigs');
-    if (savedConfigsStr) {
-      setSavedConfigs(JSON.parse(savedConfigsStr));
-    }
-  }, []);
 
   const processExcelFile = (file: File) => {
     const reader = new FileReader();
@@ -109,27 +191,6 @@ export default function FileImportSection() {
         processTextFile(file);
       }
     }
-  };
-
-  const handleSaveConfig = () => {
-    if (configName && columnMappings.length > 0) {
-      const newConfig: FileImportConfig = {
-        name: configName,
-        columnMappings,
-        delimiter,
-        hasHeader,
-      };
-      const updatedConfigs = [...savedConfigs, newConfig];
-      setSavedConfigs(updatedConfigs);
-      localStorage.setItem('salesImportConfigs', JSON.stringify(updatedConfigs));
-      setConfigName('');
-    }
-  };
-
-  const handleLoadConfig = (config: FileImportConfig) => {
-    setDelimiter(config.delimiter);
-    setHasHeader(config.hasHeader);
-    setColumnMappings(config.columnMappings);
   };
 
   const handleImport = async () => {
@@ -280,6 +341,32 @@ export default function FileImportSection() {
     }
   };
 
+  useEffect(() => {
+    loadImportHistory();
+  }, []);
+
+  const loadImportHistory = async () => {
+    const importService = SalesImportService.getInstance();
+    const datasets = await importService.getDatasets();
+    setImportHistory(datasets);
+  };
+
+  const handleDatasetSelect = async (dataset: Dataset) => {
+    const importService = SalesImportService.getInstance();
+    const fullDataset = await importService.getDatasetDetails(dataset.id);
+    setSelectedHistoryDataset(fullDataset);
+    setShowHistoryDialog(true);
+  };
+
+  const handleDownloadDataset = () => {
+    if (!selectedHistoryDataset?.data) return;
+
+    const ws = XLSX.utils.json_to_sheet(selectedHistoryDataset.data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    XLSX.writeFile(wb, `${selectedHistoryDataset.name}.xlsx`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
@@ -351,53 +438,61 @@ export default function FileImportSection() {
 
         {/* Column Mapping */}
         {previewData.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-800 dark:text-white">
-                تنظیم ستون‌ها
-              </h3>
+              <h3 className="text-lg font-medium text-gray-800 dark:text-white">تنظیم ستون‌ها</h3>
               <button
                 onClick={() => setShowSampleData(!showSampleData)}
-                className="flex items-center gap-2 px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 rounded-lg"
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 
+                         hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <Eye className="h-4 w-4" />
                 {showSampleData ? 'پنهان کردن نمونه‌ها' : 'نمایش نمونه‌ها'}
               </button>
             </div>
-            <div className="space-y-3">
+            
+            <div className="space-y-2">
               {columnMappings.map((mapping, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center gap-4">
-                    <div className="min-w-[150px]">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {mapping.fileColumn}
-                      </span>
-                      {showSampleData && (
-                        <div className="mt-1">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            نمونه: {mapping.sampleData[0]}
-                          </span>
+                <div 
+                  key={index} 
+                  className={`flex items-center gap-4 p-3 rounded-lg transition-all
+                           ${mapping.appColumn 
+                             ? 'bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30' 
+                             : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700'}`}
+                >
+                  <div className="w-[180px] flex-shrink-0">
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                      {mapping.fileColumn}
+                    </div>
+                  </div>
+                  
+                  <select
+                    value={mapping.appColumn}
+                    onChange={(e) => {
+                      const newMappings = [...columnMappings];
+                      newMappings[index].appColumn = e.target.value;
+                      setColumnMappings(newMappings);
+                    }}
+                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 
+                             bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white
+                             focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">انتخاب ستون متناظر</option>
+                    {appColumns.map(col => (
+                      <option key={col.value} value={col.value}>{col.label}</option>
+                    ))}
+                  </select>
+
+                  {showSampleData && mapping.sampleData[0] && (
+                    <div className="w-[200px] flex-shrink-0">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 truncate" title={mapping.sampleData[0]}>
+                        {mapping.sampleData[0]}
+                      </div>
+                      {mapping.sampleData.length > 1 && (
+                        <div className="text-xs text-gray-400 dark:text-gray-500">
+                          + {mapping.sampleData.length - 1} نمونه دیگر
                         </div>
                       )}
-                    </div>
-                    <select
-                      value={mapping.appColumn}
-                      onChange={(e) => {
-                        const newMappings = [...columnMappings];
-                        newMappings[index].appColumn = e.target.value;
-                        setColumnMappings(newMappings);
-                      }}
-                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      <option value="">انتخاب کنید</option>
-                      {appColumns.map(col => (
-                        <option key={col.value} value={col.value}>{col.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {showSampleData && mapping.sampleData.length > 1 && (
-                    <div className="pl-[150px] text-xs text-gray-500 dark:text-gray-400">
-                      سایر نمونه‌ها: {mapping.sampleData.slice(1).join(', ')}
                     </div>
                   )}
                 </div>
@@ -405,27 +500,6 @@ export default function FileImportSection() {
             </div>
           </div>
         )}
-
-        {/* Save Configuration */}
-        <div className="mb-6">
-          <div className="flex items-center gap-4">
-            <input
-              type="text"
-              value={configName}
-              onChange={(e) => setConfigName(e.target.value)}
-              placeholder="نام تنظیمات"
-              className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
-            <button
-              onClick={handleSaveConfig}
-              disabled={!configName || columnMappings.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50"
-            >
-              <Save className="h-4 w-4" />
-              ذخیره تنظیمات
-            </button>
-          </div>
-        </div>
 
         {/* Dataset Name Input */}
         <div className="mb-6">
@@ -529,41 +603,60 @@ export default function FileImportSection() {
             )}
           </div>
         )}
-
-        {/* Saved Configurations */}
-        {savedConfigs.length > 0 && (
-          <div>
-            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">
-              تنظیمات ذخیره شده
-            </h3>
-            <div className="space-y-2">
-              {savedConfigs.map((config, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <span className="text-gray-800 dark:text-white">{config.name}</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleLoadConfig(config)}
-                      className="px-3 py-1 text-sm bg-blue-500 text-white rounded"
-                    >
-                      بارگذاری
-                    </button>
-                    <button
-                      onClick={() => {
-                        const newConfigs = savedConfigs.filter((_, i) => i !== index);
-                        setSavedConfigs(newConfigs);
-                        localStorage.setItem('salesImportConfigs', JSON.stringify(newConfigs));
-                      }}
-                      className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Import History Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">
+          تاریخچه ورود اطلاعات
+        </h2>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  نام مجموعه داده
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  تاریخ ورود
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  عملیات
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {importHistory.map((dataset) => (
+                <tr key={dataset.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                    {dataset.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                    {formatToJalali(new Date(dataset.importDate))}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                    <button
+                      onClick={() => handleDatasetSelect(dataset)}
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                    >
+                      مشاهده جزئیات
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Import History Dialog */}
+      <ImportHistoryDialog
+        isOpen={showHistoryDialog}
+        onClose={() => setShowHistoryDialog(false)}
+        selectedDataset={selectedHistoryDataset}
+        onDownload={handleDownloadDataset}
+      />
 
       {showProductMapping && (
         <ProductMappingDialog

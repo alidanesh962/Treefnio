@@ -4,6 +4,8 @@ import { AlertCircle, X } from 'lucide-react';
 import { db } from '../../database';
 import { Department } from '../../types';
 import DepartmentDialog from './DepartmentDialog';
+import { logUserActivity } from '../../utils/userActivity';
+import { getCurrentUser } from '../../utils/auth';
 
 interface ProductDefinitionFormProps {
   onBack: () => void;
@@ -124,17 +126,28 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
         return;
       }
 
+      const user = getCurrentUser();
       const productData = {
         name: formData.name.trim(),
         code: formData.code.trim(),
         saleDepartment: formData.saleDepartment,
         productionSegment: formData.productionSegment,
-        autoGenerateCode // Pass this flag to the DB method
+        autoGenerateCode
       };
 
       await db.addProductDefinition(productData);
-      onSuccess();
       
+      if (user) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'create',
+          'products',
+          `Created new product "${productData.name}"`
+        );
+      }
+
+      onSuccess?.();
     } catch (error) {
       console.error('Error submitting product:', error);
       setSubmitError('خطا در ثبت محصول');

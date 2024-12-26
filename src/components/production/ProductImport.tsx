@@ -9,6 +9,8 @@ import _ from 'lodash';
 import { db } from '../../database';
 import type { Item } from '../../types';
 import * as XLSX from 'xlsx';
+import { logUserActivity } from '../../utils/userActivity';
+import { getCurrentUser } from '../../utils/auth';
 
 interface FileData {
   headers: string[];
@@ -397,10 +399,12 @@ export default function ProductImport({ onClose, onSuccess }: ProductImportProps
         throw new Error('هیچ موردی برای ثبت انتخاب نشده است');
       }
 
+      const user = getCurrentUser();
+
       for (const product of selectedProducts) {
         const productData = {
           name: product.name,
-          code: columnMapping.autoGenerateCode ? '' : product.code, // Empty if auto-generating
+          code: columnMapping.autoGenerateCode ? '' : product.code,
           department: product.department,
           price: product.price,
           autoGenerateCode: columnMapping.autoGenerateCode,
@@ -410,6 +414,16 @@ export default function ProductImport({ onClose, onSuccess }: ProductImportProps
         };
 
         await db.addProductDefinition(productData);
+
+        if (user) {
+          logUserActivity(
+            user.username,
+            user.username,
+            'create',
+            'products',
+            `Imported product "${product.name}"`
+          );
+        }
       }
 
       onSuccess();

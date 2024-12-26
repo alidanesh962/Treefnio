@@ -1,44 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Search, 
-  Filter, 
-  X,
-  ArrowUpDown,
-  Package,
-  Calendar 
-} from 'lucide-react';
-import moment from 'moment-jalaali';
+import { Plus, Filter, X, Calendar } from 'lucide-react';
 import { db } from '../../database';
-import type { Item } from '../../database/types';
+import { formatToJalali } from '../../utils/dateUtils';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import NewItemDialog from './NewItemDialog';
 import DatePicker, { DayValue } from '@hassanmojab/react-modern-calendar-datepicker';
 import '@hassanmojab/react-modern-calendar-datepicker/lib/DatePicker.css';
+import moment from 'moment-jalaali';
+import type { Item } from '../../database/types';
 
 // Extend Item type to include createdAt
 interface ExtendedItem extends Item {
   createdAt?: number;
 }
 
-// Define type for Persian date
-type PersianDateType = {
-  year: number;
-  month: number;
-  day: number;
-} | null;
-
 interface FilterState {
   search: string;
   name: string;
   code: string;
+  dateFrom: DayValue;
+  dateTo: DayValue;
+  category: string;
   department: string;
   minPrice: string;
   maxPrice: string;
-  dateFrom: PersianDateType;
-  dateTo: PersianDateType;
 }
 
 interface SortConfig {
@@ -50,12 +35,14 @@ const initialFilterState: FilterState = {
   search: '',
   name: '',
   code: '',
-  department: '',
-  minPrice: '',
-  maxPrice: '',
   dateFrom: null,
-  dateTo: null
+  dateTo: null,
+  category: 'all',
+  department: 'all',
+  minPrice: '',
+  maxPrice: ''
 };
+
 export default function InventoryOverview() {
   const [materials, setMaterials] = useState<ExtendedItem[]>([]);
   const [filters, setFilters] = useState<FilterState>(initialFilterState);
@@ -74,73 +61,35 @@ export default function InventoryOverview() {
   }, []);
 
   const loadData = () => {
-    const loadedMaterials = db.getMaterials().map(material => ({
+    const loadedMaterials = db.getMaterials().map((material: Item) => ({
       ...material,
-      createdAt: Date.now() // Add createdAt field to existing materials
+      createdAt: Date.now()
     }));
     setMaterials(loadedMaterials);
 
-    const uniqueDepartments = Array.from(new Set(loadedMaterials.map(item => item.department)));
+    const uniqueDepartments = Array.from(new Set(loadedMaterials.map((item: Item) => item.department))) as string[];
     setDepartments(uniqueDepartments);
   };
 
-  const handleSort = (field: keyof ExtendedItem) => {
-    setSortConfig(current => ({
-      field,
-      direction: 
-        current?.field === field && current.direction === 'asc' 
-          ? 'desc' 
-          : 'asc'
-    }));
-  };
-  const handleAddItem = (item: { name: string; code: string; department: string; price: number }) => {
-    const newMaterial: ExtendedItem = {
-      id: '', // This will be set by the database
-      name: item.name,
-      code: item.code,
-      department: item.department,
-      price: item.price,
-      type: 'material',
-      createdAt: Date.now()
-    };
-    const addedMaterial = db.addMaterial(newMaterial);
-    setMaterials(prevMaterials => [...prevMaterials, { ...addedMaterial, createdAt: Date.now() }]);
-    setShowNewItemDialog(false);
-    loadData();
-  };
-
-  const handleDelete = () => {
-    if (deleteConfirm.id && db.deleteMaterial(deleteConfirm.id)) {
-      setMaterials(materials.filter(m => m.id !== deleteConfirm.id));
-      loadData();
-    }
-    setDeleteConfirm({ isOpen: false, id: '', name: '' });
-  };
-
-  const clearFilters = () => {
-    setFilters(initialFilterState);
-    setSortConfig({ field: undefined, direction: 'asc' });
-  };
-
-  const handleDateChange = (
-    key: 'dateFrom' | 'dateTo',
-    value: DayValue
-  ): void => {
+  const handleDateChange = (field: 'dateFrom' | 'dateTo', date: DayValue) => {
     setFilters(prev => ({
       ...prev,
-      [key]: value as PersianDateType
+      [field]: date
     }));
   };
 
-  const convertToTimestamp = (date: PersianDateType): number | null => {
+  const handleFilterChange = (field: keyof FilterState, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const convertToTimestamp = (date: DayValue): number | null => {
     if (!date) return null;
     return moment(`${date.year}/${date.month}/${date.day}`, 'jYYYY/jM/jD').valueOf();
   };
 
-  const dateToString = (date: PersianDateType): string => {
-    if (!date) return '';
-    return `${date.year}/${String(date.month).padStart(2, '0')}/${String(date.day).padStart(2, '0')}`;
-  };
   const filteredMaterials = materials.filter(material => {
     const matchesSearch = !filters.search || 
       Object.values(material).some(value => 
@@ -153,8 +102,8 @@ export default function InventoryOverview() {
     const matchesCode = !filters.code || 
       material.code.toLowerCase().includes(filters.code.toLowerCase());
 
-    const matchesDepartment = !filters.department || 
-      material.department.toLowerCase().includes(filters.department.toLowerCase());
+    const matchesDepartment = !filters.department || filters.department === 'all' || 
+      material.department === filters.department;
 
     const matchesMinPrice = !filters.minPrice || 
       material.price >= parseFloat(filters.minPrice);
@@ -162,7 +111,6 @@ export default function InventoryOverview() {
     const matchesMaxPrice = !filters.maxPrice || 
       material.price <= parseFloat(filters.maxPrice);
 
-    // Date filtering
     const materialDate = material.createdAt || 0;
     const dateFrom = convertToTimestamp(filters.dateFrom);
     const dateTo = convertToTimestamp(filters.dateTo);
@@ -173,36 +121,22 @@ export default function InventoryOverview() {
     return matchesSearch && matchesName && matchesCode && 
            matchesDepartment && matchesMinPrice && matchesMaxPrice &&
            matchesDateFrom && matchesDateTo;
-  }).sort((a, b) => {
-    if (!sortConfig.field) return 0;
-
-    const valueA = sortConfig.field in a ? a[sortConfig.field] : null;
-    const valueB = sortConfig.field in b ? b[sortConfig.field] : null;
-
-    // Handle null/undefined values
-    if (valueA === null && valueB === null) return 0;
-    if (valueA === null) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (valueB === null) return sortConfig.direction === 'asc' ? 1 : -1;
-
-    // Type guard for string/number comparison
-    if (typeof valueA === 'string' && typeof valueB === 'string') {
-      return sortConfig.direction === 'asc' 
-        ? valueA.localeCompare(valueB)
-        : valueB.localeCompare(valueA);
-    }
-    
-    // Handle number comparison
-    if (typeof valueA === 'number' && typeof valueB === 'number') {
-      return sortConfig.direction === 'asc' 
-        ? valueA - valueB 
-        : valueB - valueA;
-    }
-
-    // Default case: convert to strings and compare
-    return sortConfig.direction === 'asc'
-      ? String(valueA).localeCompare(String(valueB))
-      : String(valueB).localeCompare(String(valueA));
   });
+
+  const handleAddItem = async (item: { name: string; code: string; department: string; price: number }) => {
+    const newItem = db.addMaterial({ ...item, type: 'material' });
+    loadData();
+    setShowNewItemDialog(false);
+  };
+
+  const handleDelete = async () => {
+    if (deleteConfirm.id) {
+      db.deleteMaterial(deleteConfirm.id);
+      loadData();
+      setDeleteConfirm({ isOpen: false, id: '', name: '' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -220,255 +154,201 @@ export default function InventoryOverview() {
         </button>
       </div>
 
-      {/* Search and Filters */}
+      {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm space-y-4">
-        {/* Global Search */}
+        {/* Search */}
         <div className="relative">
           <input
             type="text"
-            placeholder="جستجوی کلی..."
+            placeholder="جستجو..."
             value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            className="w-full px-4 py-2 pr-10 rounded-lg border border-gray-300 dark:border-gray-600 
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                      bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
           />
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
         </div>
 
-        {/* Advanced Filters Toggle */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className="flex items-center gap-2 text-blue-500 hover:text-blue-600"
-          >
-            <Filter className="h-4 w-4" />
-            {showAdvancedFilters ? 'مخفی کردن فیلترها' : 'نمایش فیلترهای پیشرفته'}
-          </button>
-          {(Object.values(filters).some(value => 
-            value !== '' && value !== null) ||
-            filters.dateFrom !== null || 
-            filters.dateTo !== null
-          ) && (
-            <button
-              onClick={clearFilters}
-              className="text-gray-500 hover:text-gray-600 flex items-center gap-1"
-            >
-              <X className="h-4 w-4" />
-              پاک کردن فیلترها
-            </button>
-          )}
+        {/* Date Range */}
+        <div className="flex gap-4 items-center">
+          <div className="flex-1">
+            <DatePicker
+              value={filters.dateFrom}
+              onChange={(date: DayValue) => handleDateChange('dateFrom', date)}
+              inputPlaceholder="از تاریخ"
+              locale="fa"
+              shouldHighlightWeekends
+              inputClassName="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
+          <span className="text-gray-500 dark:text-gray-400">تا</span>
+          <div className="flex-1">
+            <DatePicker
+              value={filters.dateTo}
+              onChange={(date: DayValue) => handleDateChange('dateTo', date)}
+              inputPlaceholder="تا تاریخ"
+              locale="fa"
+              shouldHighlightWeekends
+              inputClassName="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
         </div>
+
         {/* Advanced Filters */}
         {showAdvancedFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            {/* Basic Filters */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                نام ماده اولیه
-              </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="block text-sm text-gray-600 dark:text-gray-400">نام</label>
               <input
                 type="text"
                 value={filters.name}
-                onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => handleFilterChange('name', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                کد
-              </label>
+            <div className="space-y-2">
+              <label className="block text-sm text-gray-600 dark:text-gray-400">کد</label>
               <input
                 type="text"
                 value={filters.code}
-                onChange={(e) => setFilters(prev => ({ ...prev, code: e.target.value }))}
+                onChange={(e) => handleFilterChange('code', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                گروه
-              </label>
+            <div className="space-y-2">
+              <label className="block text-sm text-gray-600 dark:text-gray-400">بخش</label>
               <select
                 value={filters.department}
-                onChange={(e) => setFilters(prev => ({ ...prev, department: e.target.value }))}
+                onChange={(e) => handleFilterChange('department', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               >
-                <option value="">همه</option>
+                <option value="all">همه</option>
                 {departments.map(dept => (
                   <option key={dept} value={dept}>{dept}</option>
                 ))}
               </select>
             </div>
 
-            {/* Date Range Pickers */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                از تاریخ
-              </label>
-              <DatePicker
-                value={filters.dateFrom}
-                onChange={(date) => handleDateChange('dateFrom', date)}
-                inputPlaceholder="انتخاب تاریخ"
-                locale="fa"
-                shouldHighlightWeekends
-                inputClassName="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                              bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                colorPrimary="#3b82f6"
-                colorPrimaryLight="rgba(59, 130, 246, 0.1)"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                تا تاریخ
-              </label>
-              <DatePicker
-                value={filters.dateTo}
-                onChange={(date) => handleDateChange('dateTo', date)}
-                inputPlaceholder="انتخاب تاریخ"
-                locale="fa"
-                shouldHighlightWeekends
-                inputClassName="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                              bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                colorPrimary="#3b82f6"
-                colorPrimaryLight="rgba(59, 130, 246, 0.1)"
-                minimumDate={filters.dateFrom || undefined}
-              />
-            </div>
-            {/* Price Filters */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                حداقل قیمت
-              </label>
-              <input
-                type="number"
-                value={filters.minPrice}
-                onChange={(e) => setFilters(prev => ({ ...prev, minPrice: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                min="0"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                حداکثر قیمت
-              </label>
-              <input
-                type="number"
-                value={filters.maxPrice}
-                onChange={(e) => setFilters(prev => ({ ...prev, maxPrice: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                min="0"
-              />
+            <div className="space-y-2">
+              <label className="block text-sm text-gray-600 dark:text-gray-400">قیمت</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  placeholder="حداقل"
+                  value={filters.minPrice}
+                  onChange={(e) => handleFilterChange('minPrice', e.target.value)}
+                  className="w-1/2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                <input
+                  type="number"
+                  placeholder="حداکثر"
+                  value={filters.maxPrice}
+                  onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                  className="w-1/2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
             </div>
           </div>
         )}
+
+        {/* Filter Actions */}
+        <div className="flex justify-between items-center">
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400"
+          >
+            {showAdvancedFilters ? <X className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+            {showAdvancedFilters ? 'بستن فیلترها' : 'فیلترهای پیشرفته'}
+          </button>
+
+          {(filters.search || filters.name || filters.code || filters.department !== 'all' || 
+            filters.minPrice || filters.maxPrice || filters.dateFrom || filters.dateTo) && (
+            <button
+              onClick={() => setFilters(initialFilterState)}
+              className="text-red-500 hover:text-red-600 transition-colors"
+            >
+              پاک کردن فیلترها
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Materials List */}
-      {filteredMaterials.length > 0 ? (
-        <div className="space-y-4">
-          {filteredMaterials.map(material => (
-            <div key={material.id} className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-medium text-gray-900 dark:text-white">{material.name}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">کد: {material.code}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    گروه: {material.department}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    قیمت: {material.price.toLocaleString()} ریال
-                  </p>
-                  {material.createdAt && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      تاریخ ثبت: {moment(material.createdAt).format('jYYYY/jMM/jDD')}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setDeleteConfirm({
-                      isOpen: true,
-                      id: material.id,
-                      name: material.name
-                    })}
-                    className="p-1.5 text-red-500 hover:text-red-600 transition-colors"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* Materials Table */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  نام
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  کد
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  بخش
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  قیمت
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  عملیات
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {filteredMaterials.map((material) => (
+                <tr key={material.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {material.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {material.code}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {material.department}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {material.price.toLocaleString()} ریال
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    <button
+                      onClick={() => setDeleteConfirm({ isOpen: true, id: material.id, name: material.name })}
+                      className="text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      حذف
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ) : (
-        <div className="text-center py-12">
-          <div className="flex flex-col items-center justify-center">
-            <Package className="h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">
-              موردی یافت نشد
-            </p>
-          </div>
-        </div>
-      )}
-      {/* New Item Dialog */}
-      {showNewItemDialog && (
-        <NewItemDialog
-          isOpen={true}
-          type="material"
-          onClose={() => setShowNewItemDialog(false)}
-          onConfirm={handleAddItem}
-          departments={departments}
-        />
-      )}
+      </div>
 
-      {/* Delete Confirmation Dialog */}
-      <DeleteConfirmDialog
-        isOpen={deleteConfirm.isOpen}
-        itemName={deleteConfirm.name}
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteConfirm({ isOpen: false, id: '', name: '' })}
-        type="item"
+      {/* Dialogs */}
+      <NewItemDialog
+        isOpen={showNewItemDialog}
+        type="material"
+        onClose={() => setShowNewItemDialog(false)}
+        onConfirm={handleAddItem}
+        departments={departments}
       />
 
-      {/* Date Picker Styles */}
-      <style>
-        {`
-          .DatePicker {
-            direction: rtl;
-          }
-          
-          .Calendar {
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            border-radius: 0.5rem;
-          }
-
-          .Calendar__weekDay {
-            color: #6b7280;
-          }
-
-          .Calendar__day.-selected {
-            background-color: #3b82f6 !important;
-            color: white;
-          }
-
-          .Calendar__day.-today {
-            border-color: #3b82f6;
-          }
-
-          .Calendar__day:hover {
-            background-color: rgba(59, 130, 246, 0.1);
-          }
-        `}
-      </style>
+      <DeleteConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, id: '', name: '' })}
+        itemName={deleteConfirm.name}
+      />
     </div>
   );
-}
+} 

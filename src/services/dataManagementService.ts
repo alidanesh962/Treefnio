@@ -1,8 +1,7 @@
 import { db } from '../database';
-import type { Product } from '../types/product';
-import type { Material } from '../types/material';
-import type { ProductRecipe } from '../types';
+import { Material, Product, ProductRecipe } from '../types';
 import * as XLSX from 'xlsx';
+import { getCurrentJalaliTimestamp } from '../database/dateUtils';
 
 interface MaterialUnit {
   id: string;
@@ -145,7 +144,7 @@ export class DataManagementService {
           id: 'fruit-cake',
           name: 'کیک میوه‌ای',
           code: 'FC001',
-          description: 'کیک با تزیین میوه‌های تازه',
+          description: 'کیک میوه‌ای با تزیین میوه‌های تازه',
           price: 550000,
           category: 'dessert',
           isActive: true,
@@ -162,54 +161,58 @@ export class DataManagementService {
           productId: 'chocolate-cake',
           name: 'دستور پخت کیک شکلاتی',
           materials: [
-            { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000 },
-            { materialId: 'sugar', unit: 'kg', amount: 0.3, unitPrice: 200000, totalPrice: 60000 },
-            { materialId: 'milk', unit: 'l', amount: 0.4, unitPrice: 180000, totalPrice: 72000 },
-            { materialId: 'chocolate', unit: 'kg', amount: 0.2, unitPrice: 800000, totalPrice: 160000 }
+            { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000, note: 'آرد مخصوص شیرینی‌پزی' },
+            { materialId: 'sugar', unit: 'kg', amount: 0.3, unitPrice: 200000, totalPrice: 60000, note: 'شکر سفید' },
+            { materialId: 'milk', unit: 'l', amount: 0.4, unitPrice: 180000, totalPrice: 72000, note: 'شیر پرچرب' },
+            { materialId: 'chocolate', unit: 'kg', amount: 0.2, unitPrice: 800000, totalPrice: 160000, note: 'شکلات تلخ ��' }
           ],
+          notes: 'دستور پخت اصلی کیک شکلاتی با شکلات تلخ',
           isActive: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
+          createdAt: getCurrentJalaliTimestamp(),
+          updatedAt: getCurrentJalaliTimestamp()
         },
         {
           id: 'vanilla-cake-recipe',
           productId: 'vanilla-cake',
           name: 'دستور پخت کیک وانیلی',
           materials: [
-            { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000 },
-            { materialId: 'sugar', unit: 'kg', amount: 0.25, unitPrice: 200000, totalPrice: 50000 },
-            { materialId: 'milk', unit: 'l', amount: 0.35, unitPrice: 180000, totalPrice: 63000 }
+            { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000, note: 'آرد مخصوص شیرینی‌پزی' },
+            { materialId: 'sugar', unit: 'kg', amount: 0.25, unitPrice: 200000, totalPrice: 50000, note: 'شکر سفید' },
+            { materialId: 'milk', unit: 'l', amount: 0.35, unitPrice: 180000, totalPrice: 63000, note: 'شیر پرچرب' }
           ],
+          notes: 'دستور پخت پایه کیک وانیلی',
           isActive: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
+          createdAt: getCurrentJalaliTimestamp(),
+          updatedAt: getCurrentJalaliTimestamp()
         },
         {
           id: 'special-cake-recipe',
           productId: 'special-cake',
           name: 'دستور پخت کیک مخصوص',
           materials: [
-            { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000 },
-            { materialId: 'sugar', unit: 'kg', amount: 0.4, unitPrice: 200000, totalPrice: 80000 },
-            { materialId: 'milk', unit: 'l', amount: 0.5, unitPrice: 180000, totalPrice: 90000 },
-            { materialId: 'chocolate', unit: 'kg', amount: 0.3, unitPrice: 800000, totalPrice: 240000 }
+            { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000, note: 'آرد مخصوص شیرینی‌پزی' },
+            { materialId: 'sugar', unit: 'kg', amount: 0.4, unitPrice: 200000, totalPrice: 80000, note: 'شکر قهوه‌ای' },
+            { materialId: 'milk', unit: 'l', amount: 0.5, unitPrice: 180000, totalPrice: 90000, note: 'شیر پرچرب' },
+            { materialId: 'chocolate', unit: 'kg', amount: 0.3, unitPrice: 800000, totalPrice: 240000, note: 'شکلات تلخ ۸۵٪' }
           ],
+          notes: 'دستور پخت ویژه کیک مخصوص با شکلات تلخ ۸۵٪',
           isActive: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
+          createdAt: getCurrentJalaliTimestamp(),
+          updatedAt: getCurrentJalaliTimestamp()
         },
         {
           id: 'fruit-cake-recipe',
           productId: 'fruit-cake',
           name: 'دستور پخت کیک میوه‌ای',
           materials: [
-            { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000 },
-            { materialId: 'sugar', unit: 'kg', amount: 0.2, unitPrice: 200000, totalPrice: 40000 },
-            { materialId: 'milk', unit: 'l', amount: 0.3, unitPrice: 180000, totalPrice: 54000 }
+            { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000, note: 'آرد مخصوص شیرینی‌پزی' },
+            { materialId: 'sugar', unit: 'kg', amount: 0.2, unitPrice: 200000, totalPrice: 40000, note: 'شکر سفید' },
+            { materialId: 'milk', unit: 'l', amount: 0.3, unitPrice: 180000, totalPrice: 54000, note: 'شیر کم‌چرب' }
           ],
+          notes: 'دستور پخت کیک میوه��ای با تزیین میوه‌های تازه فصل',
           isActive: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
+          createdAt: getCurrentJalaliTimestamp(),
+          updatedAt: getCurrentJalaliTimestamp()
         }
       ];
       await db.insertRecipes(recipes);
@@ -219,6 +222,11 @@ export class DataManagementService {
       const startDate = new Date();
       startDate.setMonth(startDate.getMonth() - 1); // Start from last month
 
+      // Ensure required departments exist
+      const departments = db.getDepartments();
+      const cafe = departments.find(d => d.name === 'کافه' && d.type === 'sale') || db.addDepartment('کافه', 'sale');
+      const restaurant = departments.find(d => d.name === 'رستوران' && d.type === 'sale') || db.addDepartment('رستوران', 'sale');
+
       // Generate daily sales for the past month
       for (let i = 0; i < 30; i++) {
         const currentDate = new Date(startDate);
@@ -227,29 +235,32 @@ export class DataManagementService {
         // Chocolate cake - Star (high market share, high growth)
         salesData.push({
           date: currentDate.toISOString(),
-          department: 'cafe',
+          department: cafe.id,
+          product_code: 'CC001',
+          quantity: 3 + Math.floor(Math.random() * 3),
           totalAmount: 450000 + Math.floor(Math.random() * 50000),
-          productId: 'chocolate-cake',
-          quantity: 3 + Math.floor(Math.random() * 3)
+          productId: 'chocolate-cake'
         });
 
         // Vanilla cake - Cash Cow (high market share, low growth)
         salesData.push({
           date: currentDate.toISOString(),
-          department: 'restaurant',
+          department: restaurant.id,
+          product_code: 'VC001',
+          quantity: 2 + Math.floor(Math.random() * 2),
           totalAmount: 350000 + Math.floor(Math.random() * 30000),
-          productId: 'vanilla-cake',
-          quantity: 2 + Math.floor(Math.random() * 2)
+          productId: 'vanilla-cake'
         });
 
         // Special cake - Question Mark (low market share, high growth)
         if (i >= 15) { // Only in the second half to show growth
           salesData.push({
             date: currentDate.toISOString(),
-            department: 'cafe',
+            department: cafe.id,
+            product_code: 'SC001',
+            quantity: 1 + Math.floor(Math.random() * 2),
             totalAmount: 650000 + Math.floor(Math.random() * 50000),
-            productId: 'special-cake',
-            quantity: 1 + Math.floor(Math.random() * 2)
+            productId: 'special-cake'
           });
         }
 
@@ -257,15 +268,18 @@ export class DataManagementService {
         if (Math.random() > 0.5) { // Sporadic sales
           salesData.push({
             date: currentDate.toISOString(),
-            department: 'restaurant',
+            department: restaurant.id,
+            product_code: 'FC001',
+            quantity: 1,
             totalAmount: 550000 + Math.floor(Math.random() * 20000),
-            productId: 'fruit-cake',
-            quantity: 1
+            productId: 'fruit-cake'
           });
         }
       }
 
-      await db.insertSales(salesData, 'Sample Historical Data');
+      // Insert sales data and set as reference dataset
+      const datasetId = await db.insertSales(salesData, 'Sample Historical Data');
+      await db.setReferenceDataset(datasetId);
 
       console.log('Sample data has been generated successfully');
     } catch (error) {
@@ -304,11 +318,11 @@ export class DataManagementService {
 
       // Generate sample sales import file
       const salesData = [
-        ['تاریخ', 'بخش', 'کد محصول', 'تعداد', 'مبلغ کل'],
-        [new Date().toLocaleDateString('fa-IR'), 'cafe', 'CC001', '1', '450000'],
-        [new Date().toLocaleDateString('fa-IR'), 'restaurant', 'VC001', '2', '700000'],
-        [new Date().toLocaleDateString('fa-IR'), 'cafe', 'SC001', '3', '650000'],
-        [new Date().toLocaleDateString('fa-IR'), 'restaurant', 'FC001', '4', '550000']
+        ['تاریخ', 'بخش', 'کد محصول', 'تعداد', 'مبلغ کل', 'شناسه محصول'],
+        [new Date().toLocaleDateString('fa-IR'), 'cafe', 'CC001', '1', '450000', 'chocolate-cake'],
+        [new Date().toLocaleDateString('fa-IR'), 'restaurant', 'VC001', '2', '700000', 'vanilla-cake'],
+        [new Date().toLocaleDateString('fa-IR'), 'cafe', 'SC001', '3', '650000', 'special-cake'],
+        [new Date().toLocaleDateString('fa-IR'), 'restaurant', 'FC001', '4', '550000', 'fruit-cake']
       ];
       const salesWB = XLSX.utils.book_new();
       const salesWS = XLSX.utils.aoa_to_sheet(salesData);

@@ -56,6 +56,7 @@ interface SalesDataset {
     department: string;
     totalAmount: number;
     productId: string;
+    product_code?: string;
     quantity: number;
   }>;
 }

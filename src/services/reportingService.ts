@@ -4,8 +4,9 @@ import { Material, Product, Recipe } from '../types';
 interface SalesReportData {
   date: string;
   department: string;
-  amount: number;
+  totalAmount: number;
   productId: string;
+  product_code?: string;
   quantity: number;
 }
 
@@ -32,6 +33,7 @@ interface SaleData {
   department: string;
   totalAmount: number;
   productId: string;
+  product_code?: string;
   quantity: number;
 }
 
@@ -57,14 +59,37 @@ export class ReportingService {
     return ReportingService.instance;
   }
 
-  public async getSalesData(startDate: string, endDate: string): Promise<{
+  public async getSalesData(startDate: string, endDate: string, datasetId: string = 'reference'): Promise<{
     salesData: SalesReportData[];
     totalSales: number;
     productDistribution: ProductSalesDistribution[];
   }> {
     try {
       // Get sales data from the database
-      const salesData: SaleData[] = await db.getSalesByDateRange(startDate, endDate);
+      let salesData: SaleData[] = [];
+      
+      if (datasetId === 'reference') {
+        const referenceDatasetId = db.getReferenceDataset();
+        if (referenceDatasetId) {
+          const datasets = db.getSalesDatasets();
+          const referenceDataset = datasets.find(ds => ds.id === referenceDatasetId);
+          if (referenceDataset) {
+            salesData = referenceDataset.data.filter(sale => {
+              const saleDate = new Date(sale.date);
+              return saleDate >= new Date(startDate) && saleDate <= new Date(endDate);
+            });
+          }
+        }
+      } else {
+        const datasets = db.getSalesDatasets();
+        const selectedDataset = datasets.find(ds => ds.id === datasetId);
+        if (selectedDataset) {
+          salesData = selectedDataset.data.filter(sale => {
+            const saleDate = new Date(sale.date);
+            return saleDate >= new Date(startDate) && saleDate <= new Date(endDate);
+          });
+        }
+      }
       
       // Get all products for reference
       const products: Product[] = await db.getAllProducts();
@@ -74,13 +99,14 @@ export class ReportingService {
       const transformedSales: SalesReportData[] = salesData.map(sale => ({
         date: new Date(sale.date).toLocaleDateString('fa-IR'),
         department: sale.department,
-        amount: sale.totalAmount,
+        totalAmount: sale.totalAmount,
         productId: sale.productId,
+        product_code: sale.product_code,
         quantity: sale.quantity
       }));
 
       // Calculate total sales
-      const totalSales = transformedSales.reduce((sum, sale) => sum + sale.amount, 0);
+      const totalSales = transformedSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
 
       // Calculate product distribution
       const productSales = new Map<string, number>();
@@ -108,7 +134,7 @@ export class ReportingService {
     }
   }
 
-  public async getMaterialUsageData(startDate: string, endDate: string): Promise<{
+  public async getMaterialUsageData(startDate: string, endDate: string, datasetId: string = 'reference'): Promise<{
     materialsData: MaterialUsageData[];
     totalUsage: number;
     materialDistribution: MaterialUsageDistribution[];
@@ -116,7 +142,30 @@ export class ReportingService {
   }> {
     try {
       // Get sales data from the database
-      const salesData: SaleData[] = await db.getSalesByDateRange(startDate, endDate);
+      let salesData: SaleData[] = [];
+      
+      if (datasetId === 'reference') {
+        const referenceDatasetId = db.getReferenceDataset();
+        if (referenceDatasetId) {
+          const datasets = db.getSalesDatasets();
+          const referenceDataset = datasets.find(ds => ds.id === referenceDatasetId);
+          if (referenceDataset) {
+            salesData = referenceDataset.data.filter(sale => {
+              const saleDate = new Date(sale.date);
+              return saleDate >= new Date(startDate) && saleDate <= new Date(endDate);
+            });
+          }
+        }
+      } else {
+        const datasets = db.getSalesDatasets();
+        const selectedDataset = datasets.find(ds => ds.id === datasetId);
+        if (selectedDataset) {
+          salesData = selectedDataset.data.filter(sale => {
+            const saleDate = new Date(sale.date);
+            return saleDate >= new Date(startDate) && saleDate <= new Date(endDate);
+          });
+        }
+      }
       
       // Get all products and materials for reference
       const products: Product[] = await db.getAllProducts();

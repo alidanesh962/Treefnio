@@ -13,6 +13,7 @@ interface Dataset {
   id: string;
   name: string;
   importDate: number;
+  data?: any[];
 }
 
 export class SalesImportService {
@@ -114,6 +115,19 @@ export class SalesImportService {
 
     return {
       updatedProducts
+    };
+  }
+
+  async getDatasetDetails(datasetId: string): Promise<Dataset | null> {
+    const datasets = db.getSalesDatasets();
+    const dataset = datasets.find(ds => ds.id === datasetId);
+    if (!dataset) return null;
+    
+    return {
+      id: dataset.id,
+      name: dataset.name,
+      importDate: dataset.importDate,
+      data: dataset.data
     };
   }
 } 

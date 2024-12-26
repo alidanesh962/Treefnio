@@ -28,7 +28,13 @@ export const setCurrentUser = (username: string, role: 'admin' | 'user' = 'admin
   
   // Log login activity with browser information
   const browserInfo = getBrowserInfo();
-  logUserActivity(username, 'login', `مرورگر: ${browserInfo.browser}, سیستم‌عامل: ${browserInfo.os}`);
+  logUserActivity(
+    username,
+    username,
+    'login',
+    'auth',
+    `مرورگر: ${browserInfo.browser}, سیستم‌عامل: ${browserInfo.os}`
+  );
 };
 
 export const getCurrentUser = (): CurrentUser | null => {
@@ -43,7 +49,9 @@ export const clearCurrentUser = () => {
     const browserInfo = getBrowserInfo();
     logUserActivity(
       currentUser.username,
+      currentUser.username,
       'logout',
+      'auth',
       `مرورگر: ${browserInfo.browser}, سیستم‌عامل: ${browserInfo.os}`
     );
   }

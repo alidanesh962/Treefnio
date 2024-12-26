@@ -14,6 +14,8 @@ import EditingTable from '../inventory/EditingTable';
 import BulkEditDialog from '../inventory/BulkEditDialog';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import ProductImport from './ProductImport';
+import { logUserActivity } from '../../utils/userActivity';
+import { getCurrentUser } from '../../utils/auth';
 
 interface FilterState {
   search: string;
@@ -116,11 +118,21 @@ export default function EditingProducts() {
     setSort({ field: undefined, direction: 'asc' });
   };
   const handleBulkEdit = (changes: Partial<Item>) => {
+    const user = getCurrentUser();
     selectedItems.forEach(id => {
       const item = items.find(i => i.id === id);
       if (item) {
         const updatedItem = { ...item, ...changes };
         db.updateProduct(updatedItem);
+        if (user) {
+          logUserActivity(
+            user.username,
+            user.username,
+            'edit',
+            'products',
+            `Updated product "${item.name}"`
+          );
+        }
       }
     });
     loadAllItems();
@@ -129,10 +141,20 @@ export default function EditingProducts() {
   };
 
   const handleBulkDelete = () => {
+    const user = getCurrentUser();
     selectedItems.forEach(id => {
       const item = items.find(i => i.id === id);
       if (item) {
         db.deleteProduct(id);
+        if (user) {
+          logUserActivity(
+            user.username,
+            user.username,
+            'delete',
+            'products',
+            `Deleted product "${item.name}"`
+          );
+        }
       }
     });
     loadAllItems();

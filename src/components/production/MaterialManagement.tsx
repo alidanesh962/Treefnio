@@ -6,6 +6,8 @@ import { db } from '../../database';
 import { Item, MaterialUnit } from '../../types';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
+import { logUserActivity } from '../../utils/userActivity';
+import { getCurrentUser } from '../../utils/auth';
 
 interface MaterialFormData {
   name: string;
@@ -108,8 +110,28 @@ export default function MaterialManagement() {
 
     if (editingMaterial) {
       db.updateMaterial({ ...editingMaterial, ...materialData });
+      const user = getCurrentUser();
+      if (user) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'edit',
+          'materials',
+          `Updated material "${materialData.name}"`
+        );
+      }
     } else {
       db.addMaterial(materialData);
+      const user = getCurrentUser();
+      if (user) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'create',
+          'materials',
+          `Created new material "${materialData.name}"`
+        );
+      }
     }
 
     loadMaterials();
@@ -129,7 +151,18 @@ export default function MaterialManagement() {
 
   const handleDelete = () => {
     if (showDeleteConfirm.materialId) {
+      const material = materials.find(m => m.id === showDeleteConfirm.materialId);
       db.deleteMaterial(showDeleteConfirm.materialId);
+      const user = getCurrentUser();
+      if (user && material) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'delete',
+          'materials',
+          `Deleted material "${material.name}"`
+        );
+      }
       loadMaterials();
     }
     setShowDeleteConfirm({ isOpen: false, materialId: '', materialName: '' });

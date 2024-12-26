@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { db } from '../../database';
 import { MaterialUnit } from '../../types';
+import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
 
 // **New import** for fetching default values:
 import { getMaterialDefaults } from '../../utils/materialDefaults';
@@ -41,9 +42,28 @@ export default function MaterialCreateDialog({
   const [units, setUnits] = useState<MaterialUnit[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showUnitForm, setShowUnitForm] = useState(false);
+  const [newUnitData, setNewUnitData] = useState({ name: '', symbol: '' });
 
   // Step 2: Type the materialDefaults state properly
   const [materialDefaults, setMaterialDefaults] = useState<MaterialDefault[]>(getMaterialDefaults());
+
+  // Add real-time update hook
+  const { emitUpdate } = useRealTimeUpdates('unit-update', (data) => {
+    switch (data.type) {
+      case 'add':
+        setUnits(prev => [...prev, data.unit]);
+        break;
+      case 'update':
+        setUnits(prev => prev.map(unit => 
+          unit.id === data.unit.id ? data.unit : unit
+        ));
+        break;
+      case 'delete':
+        setUnits(prev => prev.filter(unit => unit.id !== data.unitId));
+        break;
+    }
+  });
 
   useEffect(() => {
     loadUnits();
@@ -125,6 +145,55 @@ export default function MaterialCreateDialog({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleAddNewUnit = () => {
+    const trimmedName = newUnitData.name.trim();
+    const trimmedSymbol = newUnitData.symbol.trim();
+
+    if (!trimmedName || !trimmedSymbol) {
+      setErrors(prev => ({
+        ...prev,
+        newUnit: 'نام و نماد واحد الزامی است'
+      }));
+      return;
+    }
+
+    // Check for duplicates
+    const isDuplicate = units.some(unit => 
+      unit.name.toLowerCase() === trimmedName.toLowerCase() || 
+      unit.symbol.toLowerCase() === trimmedSymbol.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      setErrors(prev => ({
+        ...prev,
+        newUnit: 'این واحد یا نماد قبلاً ثبت شده است'
+      }));
+      return;
+    }
+
+    const newUnit = db.addMaterialUnit(trimmedName, trimmedSymbol);
+    
+    // Emit update for real-time sync
+    emitUpdate({
+      type: 'add',
+      unit: newUnit
+    });
+
+    // Update local state
+    setUnits(prev => [...prev, newUnit]);
+    
+    // Reset form
+    setNewUnitData({ name: '', symbol: '' });
+    setShowUnitForm(false);
+    setErrors(prev => {
+      const { newUnit, ...rest } = prev;
+      return rest;
+    });
+    
+    // Set the new unit as selected
+    setFormData(prev => ({ ...prev, unit: newUnit.id }));
   };
 
   if (!isOpen) return null;
@@ -212,7 +281,7 @@ export default function MaterialCreateDialog({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              بخش
+              گروه مواد غذایی
             </label>
             <input
               type="text"
@@ -233,26 +302,105 @@ export default function MaterialCreateDialog({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               واحد اندازه‌گیری
             </label>
-            <select
-              value={formData.unit}
-              onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-              className={`w-full px-3 py-2 rounded-lg border ${
-                errors.unit 
-                  ? 'border-red-300 dark:border-red-600' 
-                  : 'border-gray-300 dark:border-gray-600'
-              } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
-            >
-              <option value="">انتخاب واحد...</option>
-              {units.map(unit => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name} ({unit.symbol})
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={formData.unit}
+                onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
+                className={`flex-1 px-3 py-2 rounded-lg border ${
+                  errors.unit 
+                    ? 'border-red-300 dark:border-red-600' 
+                    : 'border-gray-300 dark:border-gray-600'
+                } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
+              >
+                <option value="">انتخاب واحد...</option>
+                {units.map(unit => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.name} ({unit.symbol})
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowUnitForm(true)}
+                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                +
+              </button>
+            </div>
             {errors.unit && (
               <p className="mt-1 text-sm text-red-500">{errors.unit}</p>
             )}
           </div>
+
+          {/* New Unit Form */}
+          {showUnitForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                    افزودن واحد جدید
+                  </h3>
+                  <button
+                    onClick={() => setShowUnitForm(false)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      نام واحد
+                    </label>
+                    <input
+                      type="text"
+                      value={newUnitData.name}
+                      onChange={(e) => setNewUnitData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                               bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="مثال: کیلوگرم"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      نماد
+                    </label>
+                    <input
+                      type="text"
+                      value={newUnitData.symbol}
+                      onChange={(e) => setNewUnitData(prev => ({ ...prev, symbol: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                               bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="مثال: kg"
+                    />
+                  </div>
+
+                  {errors.newUnit && (
+                    <p className="text-sm text-red-500">{errors.newUnit}</p>
+                  )}
+
+                  <div className="flex justify-end gap-4 mt-4">
+                    <button
+                      onClick={handleAddNewUnit}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 
+                               transition-colors"
+                    >
+                      افزودن
+                    </button>
+                    <button
+                      onClick={() => setShowUnitForm(false)}
+                      className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 
+                               transition-colors"
+                    >
+                      انصراف
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

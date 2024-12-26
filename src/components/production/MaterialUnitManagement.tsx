@@ -6,6 +6,8 @@ import { db } from '../../database';
 import { MaterialUnit } from '../../types';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
+import { logUserActivity } from '../../utils/userActivity';
+import { getCurrentUser } from '../../utils/auth';
 
 interface UnitFormData {
   name: string;
@@ -85,14 +87,36 @@ export default function MaterialUnitManagement() {
   const handleSubmit = () => {
     if (!validate()) return;
 
+    const user = getCurrentUser();
+    const trimmedName = formData.name.trim();
+    const trimmedSymbol = formData.symbol.trim();
+
     if (editingUnit) {
       db.updateMaterialUnit({
         ...editingUnit,
-        name: formData.name.trim(),
-        symbol: formData.symbol.trim()
+        name: trimmedName,
+        symbol: trimmedSymbol
       });
+      if (user) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'edit',
+          'material_units',
+          `Updated material unit "${trimmedName}" (${trimmedSymbol})`
+        );
+      }
     } else {
-      db.addMaterialUnit(formData.name.trim(), formData.symbol.trim());
+      const newUnit = db.addMaterialUnit(trimmedName, trimmedSymbol);
+      if (user) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'create',
+          'material_units',
+          `Created new material unit "${trimmedName}" (${trimmedSymbol})`
+        );
+      }
     }
 
     loadUnits();
@@ -110,7 +134,18 @@ export default function MaterialUnitManagement() {
 
   const handleDelete = () => {
     if (showDeleteConfirm.unitId) {
+      const unit = units.find(u => u.id === showDeleteConfirm.unitId);
       db.deleteMaterialUnit(showDeleteConfirm.unitId);
+      const user = getCurrentUser();
+      if (user && unit) {
+        logUserActivity(
+          user.username,
+          user.username,
+          'delete',
+          'material_units',
+          `Deleted material unit "${unit.name}" (${unit.symbol})`
+        );
+      }
       loadUnits();
     }
     setShowDeleteConfirm({ isOpen: false, unitId: '', unitName: '' });
