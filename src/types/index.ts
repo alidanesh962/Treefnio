@@ -1,5 +1,7 @@
 // src/types/index.ts
 
+import { Timestamp } from 'firebase/firestore';
+
 // Base Types
 export interface Item {
   id: string;
@@ -58,12 +60,14 @@ export interface User {
 
 export interface UserActivity {
   id: string;
-  username: string;
-  fullName: string;
   type: 'create' | 'edit' | 'delete' | 'login' | 'logout';
-  timestamp: number;
+  entityType: string;
+  entityId: string;
+  userId: string;
+  username: string;
+  timestamp: Timestamp;
+  details: string;
   module: string;
-  details?: string;
 }
 
 export interface UserActivityDetails {

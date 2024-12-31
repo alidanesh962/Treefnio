@@ -77,7 +77,7 @@
         const groups: { [key: string]: { [key: string]: UserActivity[] } } = {};
         
         activities.forEach(activity => {
-          const date = new Date(activity.timestamp).toISOString().split('T')[0];
+          const date = activity.timestamp.toDate().toISOString().split('T')[0];
           if (!groups[date]) {
             groups[date] = {};
           }

@@ -14,7 +14,10 @@ import {
   DocumentData,
   QuerySnapshot,
   DocumentSnapshot,
-  QueryDocumentSnapshot
+  QueryDocumentSnapshot,
+  serverTimestamp,
+  Query,
+  CollectionReference
 } from 'firebase/firestore';
 import { Material, Product, ProductRecipe } from '../types';
 
@@ -36,31 +39,44 @@ export const COLLECTIONS = {
 export const firebaseService = {
   // Subscribe to a collection
   subscribeToCollection: (collectionName: string, onUpdate: (data: any[]) => void) => {
-    const q = query(collection(db, collectionName), orderBy('timestamp', 'desc'));
-    return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-      const items = snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      onUpdate(items);
+    const collectionRef = collection(db, collectionName);
+    
+    // Create a query based on collection type
+    let q: Query<DocumentData> | CollectionReference<DocumentData> = collectionRef;
+    if (collectionName === COLLECTIONS.USER_ACTIVITIES) {
+      q = query(collectionRef, orderBy('timestamp', 'desc'));
+    } else if (collectionName === COLLECTIONS.INVENTORY_TRANSACTIONS) {
+      q = query(collectionRef, orderBy('createdAt', 'desc'));
+    }
+
+    return onSnapshot(q, {
+      next: (snapshot: QuerySnapshot<DocumentData>) => {
+        const items = snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        onUpdate(items);
+      },
+      error: (error) => {
+        console.error(`Error in real-time sync for ${collectionName}:`, error);
+      }
     });
   },
 
   // Add or update a document
   async setDocument(collectionName: string, docId: string, data: any) {
-    const timestamp = new Date().getTime();
     await setDoc(doc(db, collectionName, docId), {
       ...data,
-      timestamp,
+      timestamp: serverTimestamp(), // Use server timestamp for consistency
+      updatedAt: serverTimestamp()
     });
   },
 
   // Update a document
   async updateDocument(collectionName: string, docId: string, data: any) {
-    const timestamp = new Date().getTime();
     await updateDoc(doc(db, collectionName, docId), {
       ...data,
-      timestamp,
+      updatedAt: serverTimestamp() // Use server timestamp for consistency
     });
   },
 

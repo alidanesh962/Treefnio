@@ -1,67 +1,43 @@
 // src/hooks/useUserActivity.ts
-import { useState, useEffect, useMemo } from 'react';
-import { getUserActivities } from '../utils/userActivity';
-import { UserActivity, UserActivityDetails } from '../types';
+import { useState, useEffect, useCallback } from 'react';
+import { firebaseService } from '../services/firebaseService';
+import { COLLECTIONS } from '../services/firebaseService';
+import { UserActivity } from '../types';
 
-export const useUserActivity = (selectedUsername?: string) => {
+export const useUserActivity = () => {
     const [activities, setActivities] = useState<UserActivity[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+
+    const refresh = useCallback(() => {
+        // Re-fetch activities
+        firebaseService.subscribeToCollection(
+            COLLECTIONS.USER_ACTIVITIES,
+            (data: UserActivity[]) => {
+                const sortedActivities = [...data].sort((a: UserActivity, b: UserActivity) => {
+                    if (!a.timestamp || !b.timestamp) return 0;
+                    return b.timestamp.toDate().getTime() - a.timestamp.toDate().getTime();
+                });
+                setActivities(sortedActivities);
+                setLoading(false);
+            }
+        );
+    }, []);
 
     useEffect(() => {
-        const fetchActivities = async () => {
-            try {
-                const data = await getUserActivities(selectedUsername);
-                console.log('Fetched activities:', data);
-                // Sort activities by timestamp in descending order
-                const sortedData = [...data].sort((a: UserActivity, b: UserActivity) => b.timestamp - a.timestamp);
-                setActivities(sortedData);
-            } catch (error) {
-                console.error('Error fetching user activities:', error);
+        const unsubscribe = firebaseService.subscribeToCollection(
+            COLLECTIONS.USER_ACTIVITIES,
+            (data: UserActivity[]) => {
+                const sortedActivities = [...data].sort((a: UserActivity, b: UserActivity) => {
+                    if (!a.timestamp || !b.timestamp) return 0;
+                    return b.timestamp.toDate().getTime() - a.timestamp.toDate().getTime();
+                });
+                setActivities(sortedActivities);
+                setLoading(false);
             }
-        };
-        fetchActivities();
-    }, [selectedUsername]);
+        );
 
-    const groupedByDate = useMemo(() => {
-        const groups: { [date: string]: UserActivity[] } = {};
-        
-        activities.forEach(activity => {
-            const date = new Date(activity.timestamp).toISOString().split('T')[0];
-            if (!groups[date]) {
-                groups[date] = [];
-            }
-            groups[date].push(activity);
-        });
+        return () => unsubscribe();
+    }, []);
 
-        return groups;
-    }, [activities]);
-
-    const stats = useMemo(() => {
-        if (!activities.length) return null;
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        return {
-            total: activities.length,
-            today: activities.filter(a => new Date(a.timestamp) >= today).length,
-            creates: activities.filter(a => a.type === 'create').length,
-            edits: activities.filter(a => a.type === 'edit').length,
-            deletes: activities.filter(a => a.type === 'delete').length,
-        };
-    }, [activities]);
-
-    return {
-        activities,
-        groupedByDate,
-        loading,
-        stats,
-        error,
-        refresh: async () => {
-            const data = await getUserActivities(selectedUsername);
-            const sortedData = [...data].sort((a: UserActivity, b: UserActivity) => b.timestamp - a.timestamp);
-            setActivities(sortedData);
-        }
-    };
+    return { activities, loading, refresh };
 };
