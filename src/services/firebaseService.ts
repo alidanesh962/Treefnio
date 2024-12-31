@@ -18,23 +18,11 @@ import {
   serverTimestamp,
   Query,
   CollectionReference,
-  enableIndexedDbPersistence,
-  enableMultiTabIndexedDbPersistence,
-  SnapshotMetadata
+  SnapshotMetadata,
+  enableNetwork,
+  disableNetwork
 } from 'firebase/firestore';
 import { Material, Product, ProductRecipe } from '../types';
-
-// Enable offline persistence
-enableMultiTabIndexedDbPersistence(db)
-  .catch((err) => {
-    if (err.code === 'failed-precondition') {
-      // Multiple tabs open, persistence can only be enabled in one tab at a time
-      console.warn('Persistence failed to enable: Multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-      // The current browser doesn't support persistence
-      console.warn('Persistence not supported by browser');
-    }
-  });
 
 // Collection names
 export const COLLECTIONS = {
@@ -57,6 +45,15 @@ interface SyncMetadata {
 }
 
 export const firebaseService = {
+  // Network control
+  enableNetwork: async () => {
+    await enableNetwork(db);
+  },
+
+  disableNetwork: async () => {
+    await disableNetwork(db);
+  },
+
   // Subscribe to a collection with real-time updates
   subscribeToCollection: <T extends { id: string }>(
     collectionName: string, 
@@ -81,14 +78,18 @@ export const firebaseService = {
         q = query(collectionRef, orderBy('updatedAt', 'desc'));
     }
 
-    const unsubscribe = onSnapshot(
+    return onSnapshot(
       q,
       { includeMetadataChanges: true },
       (snapshot: QuerySnapshot<DocumentData>) => {
-        const items = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as T[];
+        const items = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            id: doc.id,
+            _syncTime: snapshot.metadata.hasPendingWrites ? Date.now() : undefined
+          } as unknown as T;
+        });
 
         const metadata: SyncMetadata = {
           hasPendingWrites: snapshot.metadata.hasPendingWrites,
@@ -96,25 +97,31 @@ export const firebaseService = {
         };
 
         onUpdate(items, metadata);
+      },
+      (error) => {
+        console.error(`Error in collection ${collectionName}:`, error);
       }
     );
-    return unsubscribe;
   },
 
   // Add or update a document
   async setDocument(collectionName: string, docId: string, data: any) {
+    const timestamp = serverTimestamp();
     await setDoc(doc(db, collectionName, docId), {
       ...data,
-      timestamp: serverTimestamp(), // Use server timestamp for consistency
-      updatedAt: serverTimestamp()
+      timestamp,
+      updatedAt: timestamp,
+      _syncTime: Date.now()
     });
   },
 
   // Update a document
   async updateDocument(collectionName: string, docId: string, data: any) {
+    const timestamp = serverTimestamp();
     await updateDoc(doc(db, collectionName, docId), {
       ...data,
-      updatedAt: serverTimestamp() // Use server timestamp for consistency
+      updatedAt: timestamp,
+      _syncTime: Date.now()
     });
   },
 
