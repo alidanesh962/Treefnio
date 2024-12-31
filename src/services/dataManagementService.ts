@@ -1,7 +1,7 @@
-import { db } from '../database';
 import { Material, Product, ProductRecipe } from '../types';
 import * as XLSX from 'xlsx';
 import { getCurrentJalaliTimestamp } from '../database/dateUtils';
+import { firebaseService, COLLECTIONS } from './firebaseService';
 
 interface MaterialUnit {
   id: string;
@@ -23,11 +23,26 @@ export class DataManagementService {
 
   public async resetAllData(): Promise<void> {
     try {
-      await db.clearProducts();
-      await db.clearMaterials();
-      await db.clearRecipes();
-      await db.clearUnits();
-      await db.clearSales();
+      // Get all documents from each collection and delete them
+      const collections = [
+        COLLECTIONS.MATERIALS,
+        COLLECTIONS.RECIPES,
+        COLLECTIONS.PRODUCTS,
+        COLLECTIONS.DEPARTMENTS,
+        COLLECTIONS.INVENTORY_ENTRIES,
+        COLLECTIONS.INVENTORY_TRANSACTIONS,
+        COLLECTIONS.STORAGE_LOCATIONS,
+        COLLECTIONS.MATERIAL_STOCKS,
+        COLLECTIONS.USER_ACTIVITIES
+      ];
+
+      for (const collectionName of collections) {
+        const docs = await firebaseService.getCollection(collectionName);
+        for (const doc of docs) {
+          await firebaseService.deleteDocument(collectionName, doc.id);
+        }
+      }
+      
       console.log('All data has been reset successfully');
     } catch (error) {
       console.error('Error resetting data:', error);
@@ -44,7 +59,20 @@ export class DataManagementService {
         { id: 'l', name: 'لیتر', symbol: 'l' },
         { id: 'ml', name: 'میلی‌لیتر', symbol: 'ml' }
       ];
-      await db.insertUnits(units);
+      
+      for (const unit of units) {
+        const activityData = {
+          id: `unit-${unit.id}`,
+          username: 'system',
+          fullName: 'System Import',
+          type: 'create',
+          timestamp: Date.now(),
+          module: 'units',
+          details: JSON.stringify(unit)
+        };
+
+        await firebaseService.setDocument(COLLECTIONS.USER_ACTIVITIES, activityData.id, activityData);
+      }
 
       const currentDate = new Date().toISOString();
 
@@ -103,7 +131,10 @@ export class DataManagementService {
           updatedAt: currentDate
         }
       ];
-      await db.insertMaterials(materials);
+
+      for (const material of materials) {
+        await firebaseService.setDocument(COLLECTIONS.MATERIALS, material.id, material);
+      }
 
       // Generate and insert sample products
       const products: Product[] = [
@@ -114,9 +145,10 @@ export class DataManagementService {
           description: 'کیک شکلاتی خامه‌ای',
           price: 450000,
           category: 'dessert',
+          type: 'product',
           isActive: true,
-          createdAt: currentDate,
-          updatedAt: currentDate
+          createdAt: Date.now(),
+          updatedAt: Date.now()
         },
         {
           id: 'vanilla-cake',
@@ -125,9 +157,10 @@ export class DataManagementService {
           description: 'کیک وانیلی ساده',
           price: 350000,
           category: 'dessert',
+          type: 'product',
           isActive: true,
-          createdAt: currentDate,
-          updatedAt: currentDate
+          createdAt: Date.now(),
+          updatedAt: Date.now()
         },
         {
           id: 'special-cake',
@@ -136,9 +169,10 @@ export class DataManagementService {
           description: 'کیک مخصوص با تزیین ویژه',
           price: 650000,
           category: 'dessert',
+          type: 'product',
           isActive: true,
-          createdAt: currentDate,
-          updatedAt: currentDate
+          createdAt: Date.now(),
+          updatedAt: Date.now()
         },
         {
           id: 'fruit-cake',
@@ -147,12 +181,16 @@ export class DataManagementService {
           description: 'کیک میوه‌ای با تزیین میوه‌های تازه',
           price: 550000,
           category: 'dessert',
+          type: 'product',
           isActive: true,
-          createdAt: currentDate,
-          updatedAt: currentDate
+          createdAt: Date.now(),
+          updatedAt: Date.now()
         }
       ];
-      await db.insertProducts(products);
+
+      for (const product of products) {
+        await firebaseService.setDocument(COLLECTIONS.PRODUCTS, product.id, product);
+      }
 
       // Generate and insert sample recipes
       const recipes: ProductRecipe[] = [
@@ -164,7 +202,7 @@ export class DataManagementService {
             { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000, note: 'آرد مخصوص شیرینی‌پزی' },
             { materialId: 'sugar', unit: 'kg', amount: 0.3, unitPrice: 200000, totalPrice: 60000, note: 'شکر سفید' },
             { materialId: 'milk', unit: 'l', amount: 0.4, unitPrice: 180000, totalPrice: 72000, note: 'شیر پرچرب' },
-            { materialId: 'chocolate', unit: 'kg', amount: 0.2, unitPrice: 800000, totalPrice: 160000, note: 'شکلات تلخ ��' }
+            { materialId: 'chocolate', unit: 'kg', amount: 0.2, unitPrice: 800000, totalPrice: 160000, note: 'شکلات تلخ' }
           ],
           notes: 'دستور پخت اصلی کیک شکلاتی با شکلات تلخ',
           isActive: true,
@@ -209,77 +247,39 @@ export class DataManagementService {
             { materialId: 'sugar', unit: 'kg', amount: 0.2, unitPrice: 200000, totalPrice: 40000, note: 'شکر سفید' },
             { materialId: 'milk', unit: 'l', amount: 0.3, unitPrice: 180000, totalPrice: 54000, note: 'شیر کم‌چرب' }
           ],
-          notes: 'دستور پخت کیک میوه��ای با تزیین میوه‌های تازه فصل',
+          notes: 'دستور پخت کیک میوه‌ای با تزیین میوه‌های تازه فصل',
           isActive: true,
           createdAt: getCurrentJalaliTimestamp(),
           updatedAt: getCurrentJalaliTimestamp()
         }
       ];
-      await db.insertRecipes(recipes);
+
+      for (const recipe of recipes) {
+        await firebaseService.setDocument(COLLECTIONS.RECIPES, recipe.id, recipe);
+      }
 
       // Generate sample sales data
       const salesData = [];
       const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 1); // Start from last month
-
-      // Ensure required departments exist
-      const departments = db.getDepartments();
-      const cafe = departments.find(d => d.name === 'کافه' && d.type === 'sale') || db.addDepartment('کافه', 'sale');
-      const restaurant = departments.find(d => d.name === 'رستوران' && d.type === 'sale') || db.addDepartment('رستوران', 'sale');
+      startDate.setMonth(startDate.getMonth() - 1);
 
       // Generate daily sales for the past month
       for (let i = 0; i < 30; i++) {
         const currentDate = new Date(startDate);
         currentDate.setDate(startDate.getDate() + i);
         
-        // Chocolate cake - Star (high market share, high growth)
-        salesData.push({
+        const sale = {
+          id: `sale-${i}`,
           date: currentDate.toISOString(),
-          department: cafe.id,
+          department: 'cafe',
           product_code: 'CC001',
           quantity: 3 + Math.floor(Math.random() * 3),
           totalAmount: 450000 + Math.floor(Math.random() * 50000),
           productId: 'chocolate-cake'
-        });
+        };
 
-        // Vanilla cake - Cash Cow (high market share, low growth)
-        salesData.push({
-          date: currentDate.toISOString(),
-          department: restaurant.id,
-          product_code: 'VC001',
-          quantity: 2 + Math.floor(Math.random() * 2),
-          totalAmount: 350000 + Math.floor(Math.random() * 30000),
-          productId: 'vanilla-cake'
-        });
-
-        // Special cake - Question Mark (low market share, high growth)
-        if (i >= 15) { // Only in the second half to show growth
-          salesData.push({
-            date: currentDate.toISOString(),
-            department: cafe.id,
-            product_code: 'SC001',
-            quantity: 1 + Math.floor(Math.random() * 2),
-            totalAmount: 650000 + Math.floor(Math.random() * 50000),
-            productId: 'special-cake'
-          });
-        }
-
-        // Fruit cake - Dog (low market share, low growth)
-        if (Math.random() > 0.5) { // Sporadic sales
-          salesData.push({
-            date: currentDate.toISOString(),
-            department: restaurant.id,
-            product_code: 'FC001',
-            quantity: 1,
-            totalAmount: 550000 + Math.floor(Math.random() * 20000),
-            productId: 'fruit-cake'
-          });
-        }
+        await firebaseService.setDocument(COLLECTIONS.USER_ACTIVITIES, `sale-${i}`, sale);
       }
-
-      // Insert sales data and set as reference dataset
-      const datasetId = await db.insertSales(salesData, 'Sample Historical Data');
-      await db.setReferenceDataset(datasetId);
 
       console.log('Sample data has been generated successfully');
     } catch (error) {

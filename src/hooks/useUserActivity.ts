@@ -1,33 +1,26 @@
 // src/hooks/useUserActivity.ts
 import { useState, useEffect, useMemo } from 'react';
 import { getUserActivities } from '../utils/userActivity';
-import { UserActivity } from '../types';
+import { UserActivity, UserActivityDetails } from '../types';
 
 export const useUserActivity = (selectedUsername?: string) => {
     const [activities, setActivities] = useState<UserActivity[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchActivities = () => {
-            setLoading(true);
+        const fetchActivities = async () => {
             try {
-                const data = getUserActivities(selectedUsername);
+                const data = await getUserActivities(selectedUsername);
                 console.log('Fetched activities:', data);
                 // Sort activities by timestamp in descending order
-                const sortedData = data.sort((a, b) => b.timestamp - a.timestamp);
+                const sortedData = [...data].sort((a: UserActivity, b: UserActivity) => b.timestamp - a.timestamp);
                 setActivities(sortedData);
             } catch (error) {
                 console.error('Error fetching user activities:', error);
-            } finally {
-                setLoading(false);
             }
         };
-
         fetchActivities();
-        // Set up polling for real-time updates
-        const intervalId = setInterval(fetchActivities, 30000); // Update every 30 seconds
-
-        return () => clearInterval(intervalId);
     }, [selectedUsername]);
 
     const groupedByDate = useMemo(() => {
@@ -64,9 +57,10 @@ export const useUserActivity = (selectedUsername?: string) => {
         groupedByDate,
         loading,
         stats,
-        refresh: () => {
-            const data = getUserActivities(selectedUsername);
-            const sortedData = data.sort((a, b) => b.timestamp - a.timestamp);
+        error,
+        refresh: async () => {
+            const data = await getUserActivities(selectedUsername);
+            const sortedData = [...data].sort((a: UserActivity, b: UserActivity) => b.timestamp - a.timestamp);
             setActivities(sortedData);
         }
     };

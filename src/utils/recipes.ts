@@ -39,13 +39,13 @@ export const deleteRecipe = (id: string): boolean => {
 };
 
 export const calculateRecipeCost = (
-  recipe: Recipe, 
+  recipe: Recipe,
   materials: { [key: string]: { price: number } }
 ): number => {
-  return recipe.ingredients.reduce((total, ingredient) => {
-    const material = materials[ingredient.materialId];
-    if (material) {
-      return total + (material.price * ingredient.quantity);
+  return recipe.materials.reduce((total: number, material: { materialId: string; quantity: number }) => {
+    const materialData = materials[material.materialId];
+    if (materialData) {
+      return total + (materialData.price * material.quantity);
     }
     return total;
   }, 0);

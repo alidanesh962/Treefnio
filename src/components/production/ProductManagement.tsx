@@ -1,49 +1,51 @@
-// src/components/production/MaterialManagement.tsx
-
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
-import { Item, MaterialUnit, Department } from '../../types';
+import React, { useState } from 'react';
+import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Product } from '../../types';
+import { Department } from '../../types/department';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import { logUserActivity } from '../../utils/userActivity';
 import { getCurrentUser } from '../../utils/auth';
 import { useFirebaseSync } from '../../hooks/useFirebaseSync';
 import { COLLECTIONS } from '../../services/firebaseService';
-import { useFirebase } from '../../contexts/FirebaseContext';
 
-interface MaterialFormData {
+interface ProductFormData {
   name: string;
   code: string;
-  department: string;
+  description: string;
   price: number;
+  category: string;
 }
 
-export default function MaterialManagement() {
-  const { data: materials, loading, error, addItem, updateItem, deleteItem } = useFirebaseSync<Item>(COLLECTIONS.MATERIALS);
+export default function ProductManagement() {
+  const { data: products, loading, error, addItem, updateItem, deleteItem } = useFirebaseSync<Product>(COLLECTIONS.PRODUCTS);
   const { data: departments } = useFirebaseSync<Department>(COLLECTIONS.DEPARTMENTS);
+  
   const [showForm, setShowForm] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState<Item | null>(null);
-  const [formData, setFormData] = useState<MaterialFormData>({
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     code: '',
-    department: '',
-    price: 0
+    description: '',
+    price: 0,
+    category: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{
     isOpen: boolean;
-    materialId: string;
-    materialName: string;
-  }>({ isOpen: false, materialId: '', materialName: '' });
+    productId: string;
+    productName: string;
+  }>({ isOpen: false, productId: '', productName: '' });
 
   const resetForm = () => {
     setFormData({
       name: '',
       code: '',
-      department: '',
-      price: 0
+      description: '',
+      price: 0,
+      category: ''
     });
     setErrors({});
-    setEditingMaterial(null);
+    setEditingProduct(null);
     setShowForm(false);
   };
 
@@ -51,21 +53,21 @@ export default function MaterialManagement() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'نام ماده اولیه الزامی است';
+      newErrors.name = 'نام محصول الزامی است';
     }
     if (!formData.code.trim()) {
-      newErrors.code = 'کد ماده اولیه الزامی است';
+      newErrors.code = 'کد محصول الزامی است';
     }
-    if (!formData.department) {
-      newErrors.department = 'انتخاب گروه الزامی است';
+    if (!formData.category) {
+      newErrors.category = 'انتخاب دسته‌بندی الزامی است';
     }
     if (formData.price <= 0) {
       newErrors.price = 'قیمت باید بزرگتر از صفر باشد';
     }
 
     // Check for duplicates
-    const isDuplicate = materials.some(m => 
-      (m.code === formData.code || m.name === formData.name) && m.id !== editingMaterial?.id
+    const isDuplicate = products.some(p => 
+      (p.code === formData.code || p.name === formData.name) && p.id !== editingProduct?.id
     );
     if (isDuplicate) {
       newErrors.code = 'این کد یا نام قبلاً ثبت شده است';
@@ -78,78 +80,80 @@ export default function MaterialManagement() {
   const handleSubmit = async () => {
     if (!validate()) return;
 
-    const materialData = {
+    const newProduct: Product = {
       ...formData,
-      type: 'material' as const,
-      id: editingMaterial?.id || `material-${Date.now()}`,
-      createdAt: editingMaterial?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      id: editingProduct?.id || `product-${Date.now()}`,
+      type: 'product' as const,
+      createdAt: editingProduct?.createdAt || Date.now(),
+      updatedAt: Date.now(),
+      isActive: true
     };
 
     try {
-      if (editingMaterial) {
-        await updateItem(materialData.id, materialData);
+      if (editingProduct) {
+        await updateItem(newProduct.id, newProduct);
         const user = getCurrentUser();
         if (user) {
           logUserActivity(
             user.username,
             user.username,
             'edit',
-            'materials',
-            `Updated material "${materialData.name}"`
+            'products',
+            `Updated product "${newProduct.name}"`
           );
         }
       } else {
-        await addItem(materialData);
+        await addItem(newProduct);
         const user = getCurrentUser();
         if (user) {
           logUserActivity(
             user.username,
             user.username,
             'create',
-            'materials',
-            `Created new material "${materialData.name}"`
+            'products',
+            `Created new product "${newProduct.name}"`
           );
         }
       }
       resetForm();
     } catch (error) {
-      console.error('Error saving material:', error);
-      setErrors({ submit: 'Error saving material. Please try again.' });
+      console.error('Error saving product:', error);
+      setErrors({ submit: 'Error saving product. Please try again.' });
     }
   };
 
-  const handleEdit = (material: Item) => {
-    setEditingMaterial(material);
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
     setFormData({
-      name: material.name,
-      code: material.code,
-      department: material.department,
-      price: material.price
+      name: product.name,
+      code: product.code,
+      description: product.description || '',
+      price: product.price,
+      category: product.category
     });
     setShowForm(true);
   };
 
   const handleDelete = async () => {
-    if (showDeleteConfirm.materialId) {
+    if (showDeleteConfirm.productId) {
       try {
-        const material = materials.find(m => m.id === showDeleteConfirm.materialId);
-        await deleteItem(showDeleteConfirm.materialId);
+        const product = products.find(p => p.id === showDeleteConfirm.productId);
+        await deleteItem(showDeleteConfirm.productId);
         const user = getCurrentUser();
-        if (user && material) {
+        if (user && product) {
           logUserActivity(
             user.username,
             user.username,
             'delete',
-            'materials',
-            `Deleted material "${material.name}"`
+            'products',
+            `Deleted product "${product.name}"`
           );
         }
       } catch (error) {
-        console.error('Error deleting material:', error);
+        console.error('Error deleting product:', error);
       }
     }
-    setShowDeleteConfirm({ isOpen: false, materialId: '', materialName: '' });
+    setShowDeleteConfirm({ isOpen: false, productId: '', productName: '' });
   };
 
   if (loading) {
@@ -157,7 +161,7 @@ export default function MaterialManagement() {
   }
 
   if (error) {
-    return <div className="text-red-500">Error loading materials: {error.message}</div>;
+    return <div className="text-red-500">Error loading products: {error.message}</div>;
   }
 
   return (
@@ -165,7 +169,7 @@ export default function MaterialManagement() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-          مدیریت مواد اولیه
+          مدیریت محصولات
         </h2>
         <button
           onClick={() => setShowForm(true)}
@@ -173,17 +177,17 @@ export default function MaterialManagement() {
                    rounded-lg hover:bg-blue-600 transition-colors"
         >
           <Plus className="h-4 w-4" />
-          افزودن ماده اولیه جدید
+          افزودن محصول جدید
         </button>
       </div>
 
-      {/* Material Form */}
+      {/* Product Form */}
       {showForm && (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                نام ماده اولیه
+                نام محصول
               </label>
               <input
                 type="text"
@@ -202,7 +206,7 @@ export default function MaterialManagement() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                کد ماده اولیه
+                کد محصول
               </label>
               <input
                 type="text"
@@ -219,26 +223,39 @@ export default function MaterialManagement() {
               )}
             </div>
 
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                توضیحات
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                گروه
+                دسته‌بندی
               </label>
               <select
-                value={formData.department}
-                onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+                value={formData.category}
+                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                 className={`w-full px-3 py-2 rounded-lg border ${
-                  errors.department 
+                  errors.category 
                     ? 'border-red-300 dark:border-red-600' 
                     : 'border-gray-300 dark:border-gray-600'
                 } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
               >
-                <option value="">انتخاب گروه...</option>
-                {departments?.map(dept => (
-                  <option key={dept.name} value={dept.name}>{dept.name}</option>
+                <option value="">انتخاب دسته‌بندی...</option>
+                {departments?.map(cat => (
+                  <option key={cat.name} value={cat.name}>{cat.name}</option>
                 ))}
               </select>
-              {errors.department && (
-                <p className="mt-1 text-sm text-red-500">{errors.department}</p>
+              {errors.category && (
+                <p className="mt-1 text-sm text-red-500">{errors.category}</p>
               )}
             </div>
 
@@ -275,13 +292,13 @@ export default function MaterialManagement() {
               className="px-4 py-2 bg-blue-500 text-white rounded-lg 
                        hover:bg-blue-600 transition-colors"
             >
-              {editingMaterial ? 'ویرایش' : 'افزودن'}
+              {editingProduct ? 'ویرایش' : 'افزودن'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Materials List */}
+      {/* Products List */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-900">
@@ -293,7 +310,7 @@ export default function MaterialManagement() {
                 کد
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                گروه
+                دسته‌بندی
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 قیمت
@@ -304,24 +321,24 @@ export default function MaterialManagement() {
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {materials.map((material) => (
-              <tr key={material.id}>
+            {products.map((product) => (
+              <tr key={product.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {material.name}
+                  {product.name}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {material.code}
+                  {product.code}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {material.department}
+                  {product.category}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {material.price.toLocaleString()}
+                  {product.price.toLocaleString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleEdit(material)}
+                      onClick={() => handleEdit(product)}
                       className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 
                                dark:hover:text-blue-300 transition-colors"
                     >
@@ -330,8 +347,8 @@ export default function MaterialManagement() {
                     <button
                       onClick={() => setShowDeleteConfirm({
                         isOpen: true,
-                        materialId: material.id,
-                        materialName: material.name
+                        productId: product.id,
+                        productName: product.name
                       })}
                       className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 
                                dark:hover:text-red-300 transition-colors"
@@ -349,11 +366,11 @@ export default function MaterialManagement() {
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         isOpen={showDeleteConfirm.isOpen}
-        title="حذف ماده اولیه"
-        message={`آیا از حذف "${showDeleteConfirm.materialName}" اطمینان دارید؟`}
+        title="حذف محصول"
+        message={`آیا از حذف "${showDeleteConfirm.productName}" اطمینان دارید؟`}
         onConfirm={handleDelete}
-        onCancel={() => setShowDeleteConfirm({ isOpen: false, materialId: '', materialName: '' })}
+        onCancel={() => setShowDeleteConfirm({ isOpen: false, productId: '', productName: '' })}
       />
     </div>
   );
-}
+} 

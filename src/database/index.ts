@@ -548,7 +548,9 @@ export class Database {
       id: Date.now().toString(),
       name,
       type,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      isActive: true
     };
     departments.push(newDepartment);
     this.saveDepartments(departments);

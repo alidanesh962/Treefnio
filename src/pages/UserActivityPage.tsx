@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { getCurrentUser } from '../utils/auth';
-import { getUserActivitiesByDate, UserActivityDetails } from '../utils/userActivity';
-import { UserActivity } from '../types';
+import { getUserActivitiesByDate } from '../utils/userActivity';
+import { UserActivity, UserActivityDetails } from '../types';
 
 interface ActivityModalProps {
   date: string;
@@ -12,18 +12,17 @@ interface ActivityModalProps {
 }
 
 const ActivityModal: React.FC<ActivityModalProps> = ({ date, activities, onClose }) => {
-  const formatActivityDetails = (activity: UserActivity) => {
-    if (activity.type === 'login') return 'ورود به سیستم';
-    if (activity.type === 'logout') return 'خروج از سیستم';
-
+  const formatActivityDetails = (activity: UserActivity): string => {
     try {
       if (!activity.details) return '';
       const details: UserActivityDetails = JSON.parse(activity.details);
       const actionText = {
-        create: 'ایجاد',
-        edit: 'ویرایش',
-        delete: 'حذف'
-      }[details.action];
+        'create': 'ایجاد',
+        'edit': 'ویرایش',
+        'delete': 'حذف',
+        'login': 'ورود',
+        'logout': 'خروج'
+      }[details.type] || details.type;
 
       return `${actionText} ${details.itemType}${details.itemName ? ` "${details.itemName}"` : ''} در بخش ${details.module}`;
     } catch {
@@ -70,14 +69,16 @@ export default function UserActivityPage() {
   const [expandedUsers, setExpandedUsers] = useState<{ [username: string]: boolean }>({});
 
   useEffect(() => {
-    if (!currentUser) {
-      navigate('/login');
-      return;
-    }
-
-    // Load activities
-    const activities = getUserActivitiesByDate();
-    setGroupedActivities(activities as { [key: string]: UserActivity[] });
+    const loadActivities = async () => {
+      if (!currentUser) {
+        navigate('/login');
+        return;
+      }
+      // Load activities
+      const activities = await getUserActivitiesByDate();
+      setGroupedActivities(activities);
+    };
+    loadActivities();
   }, [currentUser, navigate]);
 
   const toggleUserExpansion = (username: string) => {

@@ -483,320 +483,268 @@ const PERSIAN_CHAR_REPLACEMENTS: { [key: string]: string } = {
   };
   // Render functions
   const renderUploadStep = (): JSX.Element => (
-    <div className="text-center py-12">
-      <input
-        type="file"
-        accept=".csv,.xlsx,.xls"
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-          const file = e.target.files?.[0];
-          if (file) handleFileUpload(file);
-        }}
-        className="hidden"
-        id="file-upload"
-      />
-      <label
-        htmlFor="file-upload"
-        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white 
-                rounded-lg hover:bg-blue-600 cursor-pointer transition-colors"
-      >
-        <Upload className="h-5 w-5" />
-        انتخاب فایل
-      </label>
-      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-        فرمت‌های پشتیبانی شده: CSV، Excel
-      </p>
-      <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-        ستون‌های مورد نیاز: نام، کد (سایر فیلدها اختیاری هستند)
-      </p>
-
-      <div className="mt-8 max-w-lg mx-auto">
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-          <h3 className="font-medium text-blue-800 dark:text-blue-200 mb-2">
-            راهنمای تهیه فایل:
+    <div className="p-6 animate-fade-in">
+      <div className="flex flex-col items-center justify-center space-y-4">
+        <div className="w-full max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover-scale">
+          <div className="flex items-center justify-center w-12 h-12 mx-auto bg-blue-100 dark:bg-blue-900/30 rounded-full">
+            <Upload className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          </div>
+          <h3 className="mt-4 text-lg font-medium text-center text-gray-900 dark:text-white">
+            آپلود فایل
           </h3>
-          <ul className="text-sm text-blue-600 dark:text-blue-300 space-y-2 text-right">
-            <li>• فایل باید شامل یک ردیف سرستون باشد</li>
-            <li>• نام ستون‌ها باید به فارسی یا انگلیسی باشد</li>
-            <li>• تنها ستون‌های نام و کد اجباری هستند</li>
-            <li>• سایر اطلاعات در صورت عدم وجود، خالی در نظر گرفته می‌شوند</li>
-          </ul>
+          <p className="mt-2 text-sm text-center text-gray-500 dark:text-gray-400">
+            فایل CSV یا Excel خود را آپلود کنید
+          </p>
+          <input
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+            className="mt-4 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 
+                     border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600
+                     transition-colors cursor-pointer"
+          />
         </div>
       </div>
     </div>
   );
 
   const renderMappingStep = (): JSX.Element => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[
-          { key: 'name' as const, label: 'نام', example: 'نام کالا، Name', required: true },
-          { key: 'code' as const, label: 'کد', example: 'کد کالا، Code', required: true },
-          { key: 'department' as const, label: 'گروه', example: 'گروه Department', required: false },
-          { key: 'unit' as const, label: 'واحد اندازه‌گیری', example: 'واحد، Unit', required: false },
-          { key: 'price' as const, label: 'قیمت', example: 'قیمت، Price', required: false }
-        ].map((field) => (
-          <div key={field.key}>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {field.label}
-              {field.required && <span className="text-red-500 mr-1">*</span>}
-            </label>
-            <select
-              value={columnMapping[field.key]?.toString() || ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                setColumnMapping(prev => ({
-                  ...prev,
-                  [field.key]: value === '' ? null : Number(value)
-                }));
-              }}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="">انتخاب ستون...</option>
-              {fileData?.headers.map((header, index) => (
-                <option key={index} value={index}>{header}</option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              مثال: {field.example}
-            </p>
+    <div className="p-6 animate-fade-in">
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover-scale">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            تطبیق ستون‌ها
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">
+            {/* Column mapping controls */}
+            {Object.entries(columnMapping).map(([field, value]) => (
+              <div key={field} className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {field === 'name' ? 'نام' :
+                   field === 'code' ? 'کد' :
+                   field === 'department' ? 'بخش' :
+                   field === 'price' ? 'قیمت' : 'واحد'}
+                </label>
+                <select
+                  value={value === null ? '' : value}
+                  onChange={(e) => {
+                    const newValue = e.target.value === '' ? null : parseInt(e.target.value);
+                    setColumnMapping({ ...columnMapping, [field]: newValue });
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                           bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white hover-scale"
+                >
+                  <option value="">انتخاب ستون</option>
+                  {fileData?.headers.map((header, index) => (
+                    <option key={index} value={index}>{header}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <div className="flex justify-between items-center mt-8">
-        <button
-          onClick={() => setCurrentStep('upload')}
-          className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 
-                   dark:bg-gray-700 rounded-lg hover:bg-gray-200 
-                   dark:hover:bg-gray-600 transition-colors"
-        >
-          مرحله قبل
-        </button>
-        <button
-          onClick={generatePreview}
-          disabled={!isColumnMappingComplete()}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 
-                   transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
-        >
-          مرحله بعد
-        </button>
+          {/* Continue Button */}
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={generatePreview}
+              disabled={!isColumnMappingComplete()}
+              className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg 
+                       hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed hover-scale"
+            >
+              ادامه
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 
   const renderPreviewControls = (): JSX.Element => (
-    <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 
-                    p-4 sticky top-0 z-10 shadow-sm">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setCurrentStep('mapping')}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 
-                     dark:bg-gray-700 rounded-lg hover:bg-gray-200 
-                     dark:hover:bg-gray-600 transition-colors"
-          >
-            مرحله قبل
-          </button>
-          <button
-            onClick={handleImport}
-            disabled={!previewMaterials.some(m => m.isSelected && !m.hasError)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white 
-                     rounded-lg hover:bg-green-600 transition-colors
-                     disabled:bg-green-300 disabled:cursor-not-allowed"
-          >
-            <Check className="h-5 w-5" />
-            ثبت موارد انتخاب شده
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {previewMaterials.filter(m => m.isSelected && !m.hasError).length} مورد انتخاب شده
-          </span>
-          <button
-            onClick={() => setPreviewMaterials(prev => 
-              prev.map(m => ({ ...m, isSelected: !m.hasError }))
-            )}
-            className="text-sm text-blue-500 hover:text-blue-600 transition-colors"
-          >
-            انتخاب همه موارد معتبر
-          </button>
-        </div>
+    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 border-t 
+                    border-gray-200 dark:border-gray-700 animate-fade-in">
+      <div className="flex items-center space-x-4">
+        <button
+          onClick={() => setCurrentStep('mapping')}
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 
+                   bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 
+                   rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 hover-scale"
+        >
+          بازگشت
+        </button>
+      </div>
+      <div className="flex items-center space-x-4">
+        <button
+          onClick={handleImport}
+          disabled={isProcessing}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 
+                   rounded-lg shadow-sm hover:bg-blue-700 disabled:opacity-50 
+                   disabled:cursor-not-allowed hover-scale"
+        >
+          {isProcessing ? 'در حال پردازش...' : 'ثبت نهایی'}
+        </button>
       </div>
     </div>
   );
+
   const renderPreviewStep = (): JSX.Element => (
-    <div className="space-y-6">
-      {/* Statistics Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 
-                    rounded-lg border border-blue-200 dark:border-blue-800">
-        <div className="text-center">
-          <div className="text-sm text-gray-600 dark:text-gray-400">کل موارد</div>
-          <div className="text-lg font-semibold text-gray-900 dark:text-white">
-            {previewMaterials.length}
-          </div>
-        </div>
-        <div className="text-center">
-          <div className="text-sm text-gray-600 dark:text-gray-400">موارد معتبر</div>
-          <div className="text-lg font-semibold text-green-600 dark:text-green-400">
-            {previewMaterials.filter(m => !m.hasError).length}
-          </div>
-        </div>
-        <div className="text-center">
-          <div className="text-sm text-gray-600 dark:text-gray-400">موارد خطادار</div>
-          <div className="text-lg font-semibold text-red-600 dark:text-red-400">
-            {previewMaterials.filter(m => m.hasError).length}
+    <div className="flex flex-col h-full animate-fade-in">
+      <div className="flex-1 p-6 overflow-auto">
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      انتخاب
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      نام
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      کد
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      بخش
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      قیمت
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      واحد
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      عملیات
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 stagger-children">
+                  {previewMaterials.map((material, index) => (
+                    <tr 
+                      key={index}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover-scale
+                                ${material.hasError ? 'bg-red-50 dark:bg-red-900/20' : ''}`}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        <input
+                          type="checkbox"
+                          checked={material.isSelected}
+                          onChange={(e) => handleToggleSelect(index, e.target.checked)}
+                          className="rounded text-blue-500 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {material.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {material.code}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {material.department}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {material.price.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {material.unit}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {material.hasError ? (
+                          <span className="text-red-500 text-xs">{material.errorMessage}</span>
+                        ) : (
+                          <span className="text-green-500 text-xs">معتبر</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Preview Table */}
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-700">
-            <tr>
-              <th scope="col" className="p-4 w-12">
-                <input
-                  type="checkbox"
-                  checked={previewMaterials.every(m => m.isSelected || m.hasError)}
-                  onChange={(e) => setPreviewMaterials(prev => 
-                    prev.map(m => ({ ...m, isSelected: !m.hasError && e.target.checked }))
-                  )}
-                  className="rounded text-blue-500 focus:ring-blue-500"
-                />
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                نام
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                کد
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                گروه
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                واحد
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                قیمت (ریال)
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                وضعیت
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {previewMaterials.map((material, index) => (
-              <MaterialEditRow
-                key={index}
-                material={material}
-                index={index}
-                units={availableUnits}
-                isEditing={editingIndex === index}
-                onEdit={handleEditStart}
-                onSave={handleEditSave}
-                onCancel={handleEditCancel}
-                onToggleSelect={handleToggleSelect}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="text-sm text-gray-500 space-y-1">
-        <p>* برای مشاهده جزئیات خطا، نشانگر ماوس را روی متن خطا نگه دارید</p>
-        <p>* برای ویرایش هر مورد، روی دکمه ویرایش کلیک کنید</p>
-        <p>* تنها فیلدهای نام و کد اجباری هستند</p>
-        <p>* موارد خطادار قابل انتخاب نیستند</p>
-      </div>
+      {renderPreviewControls()}
     </div>
   );
 
   // Main render
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto"
-         onClick={(e) => {
-           if (e.target === e.currentTarget) {
-             onClose();
-           }
-         }}>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full mx-4 my-6
-                      relative flex flex-col max-h-[90vh]"
-           onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            ورود گروهی مواد اولیه
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            aria-label="بستن"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="relative h-1 bg-gray-200 dark:bg-gray-700">
-          <div
-            className="absolute h-full bg-blue-500 transition-all duration-300"
-            style={{
-              width: currentStep === 'upload' ? '33.33%' :
-                    currentStep === 'mapping' ? '66.66%' : '100%'
-            }}
-          />
-        </div>
-
-        {/* Step Labels */}
-        <div className="grid grid-cols-3 gap-4 px-6 pt-4">
-          {[
-            { step: 'upload', label: 'انتخاب فایل' },
-            { step: 'mapping', label: 'تطبیق ستون‌ها' },
-            { step: 'preview', label: 'پیش‌نمایش و ویرایش' }
-          ].map(({ step, label }) => (
-            <div 
-              key={step}
-              className={`text-center text-sm ${
-                currentStep === step 
-                  ? 'text-blue-500 font-medium' 
-                  : 'text-gray-500'
-              }`}
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50" onClick={onClose}></div>
+        
+        <div className="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-lg shadow-xl animate-scale-in">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              ورود اطلاعات از فایل
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 
+                       dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 
+                       dark:hover:bg-gray-700 hover-scale"
             >
-              {label}
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="relative">
+            {/* Steps */}
+            <div className="flex items-center justify-center p-4 space-x-4 stagger-children">
+              {['upload', 'mapping', 'preview'].map((step, index) => (
+                <div
+                  key={step}
+                  className={`flex items-center ${index !== 0 ? 'mr-4' : ''}`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center
+                              ${currentStep === step
+                                ? 'bg-blue-600 text-white'
+                                : index < ['upload', 'mapping', 'preview'].indexOf(currentStep)
+                                  ? 'bg-green-500 text-white'
+                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                              } hover-scale`}
+                  >
+                    {index < ['upload', 'mapping', 'preview'].indexOf(currentStep) ? (
+                      <Check className="w-5 h-5" />
+                    ) : (
+                      index + 1
+                    )}
+                  </div>
+                  {index < 2 && (
+                    <div
+                      className={`h-0.5 w-16 mr-4
+                                ${index < ['upload', 'mapping', 'preview'].indexOf(currentStep)
+                                  ? 'bg-green-500'
+                                  : 'bg-gray-200 dark:bg-gray-700'
+                                }`}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="mx-6 mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 
-                         dark:border-red-800 rounded-lg flex items-center gap-2 text-red-600 
-                         dark:text-red-400">
-            <AlertCircle className="h-5 w-5 flex-shrink-0" />
-            <p>{error}</p>
-          </div>
-        )}
-
-        {/* Processing Spinner */}
-        {isProcessing ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-6">
-            <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
-            <p className="mt-4 text-gray-600 dark:text-gray-400">در حال پردازش...</p>
-          </div>
-        ) : (
-          <>
-            {/* Controls for Preview Step */}
-            {currentStep === 'preview' && renderPreviewControls()}
-            
-            {/* Main Content */}
-            <div className="flex-1 p-6 overflow-y-auto">
+            {/* Step Content */}
+            <div className="animate-fade-in">
               {currentStep === 'upload' && renderUploadStep()}
               {currentStep === 'mapping' && renderMappingStep()}
               {currentStep === 'preview' && renderPreviewStep()}
             </div>
-          </>
-        )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="p-4 mb-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 
+                            rounded-lg animate-fade-in">
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                  <span>{error}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

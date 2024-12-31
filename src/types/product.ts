@@ -5,13 +5,13 @@ export interface Recipe {
 
 export interface Product {
   id: string;
-  code: string;
   name: string;
+  code: string;
   description?: string;
   price: number;
-  recipe?: Recipe[];
-  category?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  category: string;
+  type: 'product';
+  createdAt?: number;
+  updatedAt?: number;
+  isActive?: boolean;
 } 

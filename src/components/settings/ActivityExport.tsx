@@ -13,18 +13,18 @@ const ActivityExport: React.FC<ActivityExportProps> = ({ className = '' }) => {
   const handleExport = async (format: 'json' | 'csv') => {
     setIsExporting(true);
     try {
-      const data = exportActivities(format);
-      const blob = new Blob([data], { 
-        type: format === 'json' ? 'application/json' : 'text/csv' 
+      const data = await exportActivities(format);
+      const blob = new Blob([data], {
+        type: format === 'json' ? 'application/json' : 'text/csv'
       });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `user-activities.${format}`;
+      a.download = `activities.${format}`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
       console.error('Error exporting activities:', error);
     } finally {

@@ -1,21 +1,17 @@
 // src/types/recipe.ts
 
-export interface RecipeMaterial {
-  materialId: string;
-  unit: string;
-  amount: number;
-  unitPrice: number;
-  totalPrice: number;
-  note?: string;
-}
-
-export interface ProductRecipe {
+export interface Recipe {
   id: string;
-  productId: string;
   name: string;
-  materials: RecipeMaterial[];
-  notes: string;
-  isActive: boolean;
-  createdAt: number;
-  updatedAt: number;
+  productId: string;
+  materials: Array<{
+    materialId: string;
+    quantity: number;
+    unit: string;
+    note?: string;
+  }>;
+  notes?: string;
+  createdAt?: string | number;
+  updatedAt?: string | number;
+  isActive?: boolean;
 }

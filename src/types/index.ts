@@ -15,6 +15,9 @@ export interface Item {
   expiryDate?: number;
   lastPurchasePrice?: number;
   lastEntryDate?: number;
+  createdAt?: string | number;
+  updatedAt?: string | number;
+  isActive?: boolean;
 }
 
 export interface ExtendedItem extends Item {
@@ -36,6 +39,8 @@ export interface Department {
   name: string;
   type: 'sale' | 'production';
   createdAt: number;
+  updatedAt: number;
+  isActive: boolean;
 }
 
 // User Related Types
@@ -61,19 +66,33 @@ export interface UserActivity {
   details?: string;
 }
 
+export interface UserActivityDetails {
+  id: string;
+  username: string;
+  fullName: string;
+  type: 'create' | 'edit' | 'delete' | 'login' | 'logout';
+  module: string;
+  itemType?: string;
+  itemName?: string;
+  details?: string;
+  timestamp: number;
+}
+
 // Recipe Related Types
 export interface Recipe {
   id: string;
   name: string;
-  description: string;
-  ingredients: Array<{
+  productId: string;
+  materials: Array<{
     materialId: string;
     quantity: number;
+    unit: string;
+    note?: string;
   }>;
-  finalProduct: string;
-  yield: number;
+  notes?: string;
   createdAt?: number;
   updatedAt?: number;
+  isActive?: boolean;
 }
 
 export interface RecipeMaterial {
@@ -170,6 +189,7 @@ export interface StorageLocation {
 }
 
 export interface MaterialStock {
+  id: string;
   materialId: string;
   quantity: number;
   unit: string;

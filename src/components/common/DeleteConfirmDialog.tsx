@@ -8,6 +8,8 @@ export interface DeleteConfirmDialogProps {
   itemName?: string;
   username?: string;
   type?: 'user' | 'item';
+  title?: string;
+  message?: string;
 }
 
 const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
@@ -16,14 +18,16 @@ const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
   onCancel,
   itemName,
   username,
-  type = 'item'
+  type = 'item',
+  title: customTitle,
+  message: customMessage
 }) => {
   if (!isOpen) return null;
 
-  const title = type === 'user' ? 'حذف کاربر' : 'حذف آیتم';
-  const message = type === 'user' 
+  const title = customTitle || (type === 'user' ? 'حذف کاربر' : 'حذف آیتم');
+  const message = customMessage || (type === 'user' 
     ? `آیا از حذف کاربر ${username} اطمینان دارید؟`
-    : `آیا از حذف ${itemName} اطمینان دارید؟`;
+    : `آیا از حذف ${itemName} اطمینان دارید؟`);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
