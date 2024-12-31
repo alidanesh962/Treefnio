@@ -17,21 +17,29 @@ const firebaseConfig = {
     appId: "1:941348726093:web:6c50bf1947cdbdbc110304"
 };
 
-// Initialize Firebase
+console.log('[Firebase] Initializing Firebase app...');
 const app: FirebaseApp = initializeApp(firebaseConfig);
 
-// Initialize Firestore with settings for better sync
+console.log('[Firebase] Initializing Firestore with unlimited cache...');
 export const db: Firestore = initializeFirestore(app, {
   cacheSizeBytes: CACHE_SIZE_UNLIMITED
 });
 
 // Enable offline persistence
-enableIndexedDbPersistence(db).catch((err) => {
+console.log('[Firebase] Enabling IndexedDB persistence...');
+enableIndexedDbPersistence(db).then(() => {
+  console.log('[Firebase] ✅ IndexedDB persistence enabled successfully');
+}).catch((err) => {
   if (err.code === 'failed-precondition') {
-    console.warn('Multiple tabs open, persistence enabled in first tab only');
+    console.warn('[Firebase] ⚠️ Multiple tabs open, persistence enabled in first tab only', err);
   } else if (err.code === 'unimplemented') {
-    console.warn('Browser doesn\'t support persistence');
+    console.error('[Firebase] ❌ Browser doesn\'t support persistence', err);
+  } else {
+    console.error('[Firebase] ❌ Error enabling persistence:', err);
   }
 });
+
+// Log successful initialization
+console.log('[Firebase] ✅ Firebase initialized successfully');
 
 export default app;

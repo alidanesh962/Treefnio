@@ -47,11 +47,15 @@ interface SyncMetadata {
 export const firebaseService = {
   // Network control
   enableNetwork: async () => {
+    console.log('[Firebase] Enabling network connection...');
     await enableNetwork(db);
+    console.log('[Firebase] ✅ Network connection enabled');
   },
 
   disableNetwork: async () => {
+    console.log('[Firebase] Disabling network connection...');
     await disableNetwork(db);
+    console.log('[Firebase] Network connection disabled');
   },
 
   // Subscribe to a collection with real-time updates
@@ -59,6 +63,7 @@ export const firebaseService = {
     collectionName: string, 
     onUpdate: (data: T[], metadata?: SyncMetadata) => void
   ) => {
+    console.log(`[Firebase] Setting up real-time sync for collection: ${collectionName}`);
     const collectionRef = collection(db, collectionName);
     
     // Create a query based on collection type
@@ -96,38 +101,66 @@ export const firebaseService = {
           isFromCache: snapshot.metadata.fromCache
         };
 
+        console.log(`[Firebase] Collection ${collectionName} updated:`, {
+          itemCount: items.length,
+          fromCache: metadata.isFromCache,
+          hasPendingWrites: metadata.hasPendingWrites,
+          firstItem: items[0]?.id
+        });
+
         onUpdate(items, metadata);
       },
       (error) => {
-        console.error(`Error in collection ${collectionName}:`, error);
+        console.error(`[Firebase] ❌ Error in collection ${collectionName}:`, error);
       }
     );
   },
 
   // Add or update a document
   async setDocument(collectionName: string, docId: string, data: any) {
-    const timestamp = serverTimestamp();
-    await setDoc(doc(db, collectionName, docId), {
-      ...data,
-      timestamp,
-      updatedAt: timestamp,
-      _syncTime: Date.now()
-    });
+    console.log(`[Firebase] Setting document in ${collectionName}:`, { docId });
+    try {
+      const timestamp = serverTimestamp();
+      await setDoc(doc(db, collectionName, docId), {
+        ...data,
+        timestamp,
+        updatedAt: timestamp,
+        _syncTime: Date.now()
+      });
+      console.log(`[Firebase] ✅ Document set successfully in ${collectionName}:`, { docId });
+    } catch (error) {
+      console.error(`[Firebase] ❌ Error setting document in ${collectionName}:`, { docId, error });
+      throw error;
+    }
   },
 
   // Update a document
   async updateDocument(collectionName: string, docId: string, data: any) {
-    const timestamp = serverTimestamp();
-    await updateDoc(doc(db, collectionName, docId), {
-      ...data,
-      updatedAt: timestamp,
-      _syncTime: Date.now()
-    });
+    console.log(`[Firebase] Updating document in ${collectionName}:`, { docId, updateFields: Object.keys(data) });
+    try {
+      const timestamp = serverTimestamp();
+      await updateDoc(doc(db, collectionName, docId), {
+        ...data,
+        updatedAt: timestamp,
+        _syncTime: Date.now()
+      });
+      console.log(`[Firebase] ✅ Document updated successfully in ${collectionName}:`, { docId });
+    } catch (error) {
+      console.error(`[Firebase] ❌ Error updating document in ${collectionName}:`, { docId, error });
+      throw error;
+    }
   },
 
   // Delete a document
   async deleteDocument(collectionName: string, docId: string) {
-    await deleteDoc(doc(db, collectionName, docId));
+    console.log(`[Firebase] Deleting document from ${collectionName}:`, { docId });
+    try {
+      await deleteDoc(doc(db, collectionName, docId));
+      console.log(`[Firebase] ✅ Document deleted successfully from ${collectionName}:`, { docId });
+    } catch (error) {
+      console.error(`[Firebase] ❌ Error deleting document from ${collectionName}:`, { docId, error });
+      throw error;
+    }
   },
 
   // Get a single document
