@@ -17,9 +17,23 @@ import {
   QueryDocumentSnapshot,
   serverTimestamp,
   Query,
-  CollectionReference
+  CollectionReference,
+  enableIndexedDbPersistence,
+  enableMultiTabIndexedDbPersistence
 } from 'firebase/firestore';
 import { Material, Product, ProductRecipe } from '../types';
+
+// Enable offline persistence
+enableMultiTabIndexedDbPersistence(db)
+  .catch((err) => {
+    if (err.code === 'failed-precondition') {
+      // Multiple tabs open, persistence can only be enabled in one tab at a time
+      console.warn('Persistence failed to enable: Multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      // The current browser doesn't support persistence
+      console.warn('Persistence not supported by browser');
+    }
+  });
 
 // Collection names
 export const COLLECTIONS = {
@@ -37,30 +51,39 @@ export const COLLECTIONS = {
 } as const;
 
 export const firebaseService = {
-  // Subscribe to a collection
+  // Subscribe to a collection with real-time updates
   subscribeToCollection: (collectionName: string, onUpdate: (data: any[]) => void) => {
     const collectionRef = collection(db, collectionName);
     
     // Create a query based on collection type
     let q: Query<DocumentData> | CollectionReference<DocumentData> = collectionRef;
-    if (collectionName === COLLECTIONS.USER_ACTIVITIES) {
-      q = query(collectionRef, orderBy('timestamp', 'desc'));
-    } else if (collectionName === COLLECTIONS.INVENTORY_TRANSACTIONS) {
-      q = query(collectionRef, orderBy('createdAt', 'desc'));
+    
+    // Add appropriate ordering for all collections
+    switch(collectionName) {
+      case COLLECTIONS.USER_ACTIVITIES:
+      case COLLECTIONS.INVENTORY_TRANSACTIONS:
+      case COLLECTIONS.PRODUCTION_BATCHES:
+        q = query(collectionRef, orderBy('timestamp', 'desc'));
+        break;
+      case COLLECTIONS.SALES_DATA:
+        q = query(collectionRef, orderBy('date', 'desc'));
+        break;
+      default:
+        q = query(collectionRef, orderBy('updatedAt', 'desc'));
     }
 
-    return onSnapshot(q, {
-      next: (snapshot: QuerySnapshot<DocumentData>) => {
-        const items = snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
+    const unsubscribe = onSnapshot(
+      q,
+      { includeMetadataChanges: true },
+      (snapshot: QuerySnapshot<DocumentData>) => {
+        const items = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data()
         }));
         onUpdate(items);
-      },
-      error: (error) => {
-        console.error(`Error in real-time sync for ${collectionName}:`, error);
       }
-    });
+    );
+    return unsubscribe;
   },
 
   // Add or update a document
