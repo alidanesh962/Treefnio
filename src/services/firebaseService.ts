@@ -19,7 +19,8 @@ import {
   Query,
   CollectionReference,
   enableIndexedDbPersistence,
-  enableMultiTabIndexedDbPersistence
+  enableMultiTabIndexedDbPersistence,
+  SnapshotMetadata
 } from 'firebase/firestore';
 import { Material, Product, ProductRecipe } from '../types';
 
@@ -50,9 +51,17 @@ export const COLLECTIONS = {
   USER_ACTIVITIES: 'user_activities'
 } as const;
 
+interface SyncMetadata {
+  hasPendingWrites: boolean;
+  isFromCache: boolean;
+}
+
 export const firebaseService = {
   // Subscribe to a collection with real-time updates
-  subscribeToCollection: (collectionName: string, onUpdate: (data: any[]) => void) => {
+  subscribeToCollection: <T extends { id: string }>(
+    collectionName: string, 
+    onUpdate: (data: T[], metadata?: SyncMetadata) => void
+  ) => {
     const collectionRef = collection(db, collectionName);
     
     // Create a query based on collection type
@@ -76,11 +85,17 @@ export const firebaseService = {
       q,
       { includeMetadataChanges: true },
       (snapshot: QuerySnapshot<DocumentData>) => {
-        const items = snapshot.docs.map((doc) => ({
+        const items = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
-        onUpdate(items);
+        })) as T[];
+
+        const metadata: SyncMetadata = {
+          hasPendingWrites: snapshot.metadata.hasPendingWrites,
+          isFromCache: snapshot.metadata.fromCache
+        };
+
+        onUpdate(items, metadata);
       }
     );
     return unsubscribe;
