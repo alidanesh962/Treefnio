@@ -17,7 +17,8 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
     name: '',
     code: '',
     saleDepartment: '',
-    productionSegment: ''
+    productionSegment: '',
+    isActive: true
   });
 
   // Step 1: Add state for auto-generation toggle
@@ -132,6 +133,7 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
         code: formData.code.trim(),
         saleDepartment: formData.saleDepartment,
         productionSegment: formData.productionSegment,
+        isActive: formData.isActive,
         autoGenerateCode
       };
 
@@ -294,6 +296,26 @@ export default function ProductDefinitionForm({ onBack, onSuccess }: ProductDefi
           {errors.productionSegment && (
             <p className="mt-1 text-sm text-red-500">{errors.productionSegment}</p>
           )}
+        </div>
+
+        {/* Add Status Toggle */}
+        <div className="col-span-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isActive"
+              checked={formData.isActive}
+              onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+              className="rounded text-blue-500 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+            <label
+              htmlFor="isActive"
+              className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+            >
+              محصول فعال است
+            </label>
+          </div>
         </div>
       </div>
 

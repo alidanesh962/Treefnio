@@ -8,10 +8,9 @@ import {
   ArrowUpDown, 
   X 
 } from 'lucide-react';
-import { Item, MaterialUnit } from '../../types';
+import { ExtendedProductDefinition } from '../../types';
 import { db } from '../../database';
-import EditingTable from '../inventory/EditingTable';
-import BulkEditDialog from '../inventory/BulkEditDialog';
+import BulkEditProductDialog from './BulkEditProductDialog';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import ProductImport from './ProductImport';
 import { logUserActivity } from '../../utils/userActivity';
@@ -21,14 +20,12 @@ interface FilterState {
   search: string;
   name: string;
   code: string;
-  department: string;
-  unit: string;
-  minPrice: string;
-  maxPrice: string;
+  saleDepartment: string;
+  productionSegment: string;
 }
 
 interface SortState {
-  field: keyof Item | undefined;
+  field: keyof ExtendedProductDefinition | undefined;
   direction: 'asc' | 'desc';
 }
 
@@ -36,22 +33,20 @@ const initialFilterState: FilterState = {
   search: '',
   name: '',
   code: '',
-  department: '',
-  unit: '',
-  minPrice: '',
-  maxPrice: ''
+  saleDepartment: '',
+  productionSegment: ''
 };
+
 export default function EditingProducts() {
-  const [items, setItems] = useState<Item[]>([]);
+  const [products, setProducts] = useState<ExtendedProductDefinition[]>([]);
   const [filters, setFilters] = useState<FilterState>(initialFilterState);
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [units, setUnits] = useState<MaterialUnit[]>([]);
   const [sort, setSort] = useState<SortState>({ field: undefined, direction: 'asc' });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [filteredItems, setFilteredItems] = useState<Item[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<ExtendedProductDefinition[]>([]);
   const [layout, setLayout] = useState<'grid' | 'list'>(() => {
     return localStorage.getItem('productsListLayout') as 'grid' | 'list' || 'grid';
   });
@@ -62,40 +57,18 @@ export default function EditingProducts() {
   }, [layout]);
 
   useEffect(() => {
-    loadAllItems();
-    loadUnits();
+    loadAllProducts();
   }, []);
 
   useEffect(() => {
     applyFiltersAndSort();
-  }, [items, filters, sort]);
+  }, [products, filters, sort]);
 
-  const loadAllItems = () => {
-    const products = db.getProducts().map(item => ({ ...item, type: 'product' as const }));
-    const productDefinitions = db.getProductDefinitions().map(def => ({
-      id: def.id,
-      name: def.name,
-      code: def.code,
-      department: def.productionSegment,
-      price: 0,
-      type: 'product' as const,
-      isActive: def.isActive
-    }));
-
-    const productMap = new Map();
-    products.forEach(p => productMap.set(p.code, p));
-    productDefinitions.forEach(p => {
-      if (!productMap.has(p.code)) {
-        productMap.set(p.code, p);
-      }
-    });
-
-    setItems(Array.from(productMap.values()));
+  const loadAllProducts = () => {
+    const productDefinitions = db.getProductDefinitions();
+    setProducts(productDefinitions);
   };
 
-  const loadUnits = () => {
-    setUnits(db.getMaterialUnits());
-  };
   const normalizeString = (str: string | number): string => {
     return String(str).toLowerCase().trim();
   };
@@ -105,41 +78,28 @@ export default function EditingProducts() {
     return !isNaN(parseFloat(str)) && isFinite(Number(str));
   };
 
-  const getUnitName = (unitId: string): string => {
-    return units.find(u => u.id === unitId)?.name || '';
-  };
-
   // Fixed Selection Handlers
   const handleSelectAll = () => {
-    const visibleIds = filteredItems.map(item => item.id);
-    setSelectedItems(prev => {
-      const allSelected = visibleIds.every(id => prev.includes(id));
-      if (allSelected) {
-        // Deselect only visible items
-        return prev.filter(id => !visibleIds.includes(id));
-      } else {
-        // Select all visible items that aren't already selected
-        const newSelected = new Set([...prev, ...visibleIds]);
-        return Array.from(newSelected);
-      }
-    });
+    if (selectedProducts.length === filteredProducts.length) {
+      setSelectedProducts([]);
+    } else {
+      const allIds = filteredProducts.map(product => product.id);
+      setSelectedProducts(allIds);
+    }
   };
 
-  const handleSelectItem = (itemId: string) => {
-    const item = items.find(i => i.id === itemId);
-    if (!item) return;
-    
-    setSelectedItems(prev => {
-      const isSelected = prev.includes(itemId);
+  const handleRowClick = (product: ExtendedProductDefinition) => {
+    setSelectedProducts(prev => {
+      const isSelected = prev.includes(product.id);
       if (isSelected) {
-        return prev.filter(id => id !== itemId);
+        return prev.filter(id => id !== product.id);
       } else {
-        return [...prev, itemId];
+        return [...prev, product.id];
       }
     });
   };
 
-  const handleSort = (field: keyof Item) => {
+  const handleSort = (field: keyof ExtendedProductDefinition) => {
     setSort(prevSort => ({
       field,
       direction: 
@@ -153,49 +113,58 @@ export default function EditingProducts() {
     setFilters(initialFilterState);
     setSort({ field: undefined, direction: 'asc' });
   };
-  const handleBulkEdit = (changes: Partial<Item>) => {
+
+  const handleBulkEdit = (changes: Partial<ExtendedProductDefinition>) => {
     const user = getCurrentUser();
-    selectedItems.forEach(id => {
-      const item = items.find(i => i.id === id);
-      if (item) {
-        const updatedItem = { ...item, ...changes };
-        db.updateProduct(updatedItem);
+    selectedProducts.forEach(id => {
+      const product = products.find(p => p.id === id);
+      if (product) {
+        const updatedProduct: ExtendedProductDefinition = { ...product, ...changes };
+        
+        // Update the active status if it was changed
+        if (changes.isActive !== undefined) {
+          db.updateProductStatus(id, changes.isActive);
+        }
+        
+        // Update other product fields
+        db.updateProductDefinition(updatedProduct);
+        
         if (user) {
           logUserActivity(
             user.username,
             user.username,
             'edit',
             'products',
-            `Updated product "${item.name}"`
+            `Updated product "${product.name}"`
           );
         }
       }
     });
-    loadAllItems();
+    loadAllProducts();
     setShowBulkEdit(false);
-    setSelectedItems([]);
+    setSelectedProducts([]);
   };
 
   const handleBulkDelete = () => {
     const user = getCurrentUser();
-    selectedItems.forEach(id => {
-      const item = items.find(i => i.id === id);
-      if (item) {
-        db.deleteProduct(id);
+    selectedProducts.forEach(id => {
+      const product = products.find(p => p.id === id);
+      if (product) {
+        db.deleteProductDefinition(id);
         if (user) {
           logUserActivity(
             user.username,
             user.username,
             'delete',
             'products',
-            `Deleted product "${item.name}"`
+            `Deleted product "${product.name}"`
           );
         }
       }
     });
-    loadAllItems();
+    loadAllProducts();
     setShowDeleteConfirm(false);
-    setSelectedItems([]);
+    setSelectedProducts([]);
   };
 
   const handleFilterChange = (field: keyof FilterState, value: string) => {
@@ -207,81 +176,63 @@ export default function EditingProducts() {
   };
 
   const handleImportSuccess = () => {
-    loadAllItems();
+    loadAllProducts();
     setShowImportDialog(false);
   };
+
   const applyFiltersAndSort = () => {
-    let result = [...items];
+    let result = [...products];
 
     // Apply filters
-    result = result.filter(item => {
+    result = result.filter(product => {
       const searchLower = filters.search.toLowerCase();
       const matchesSearch = !filters.search || 
-        Object.entries(item).some(([key, value]) => {
+        Object.entries(product).some(([key, value]) => {
           if (typeof value === 'string') {
             return value.toLowerCase().includes(searchLower);
+          }
+          if (typeof value === 'boolean') {
+            return value.toString().toLowerCase().includes(searchLower);
           }
           return String(value).toLowerCase().includes(searchLower);
         });
 
       const matchesName = !filters.name || 
-        item.name.toLowerCase().includes(filters.name.toLowerCase());
+        product.name.toLowerCase().includes(filters.name.toLowerCase());
 
       const matchesCode = !filters.code || 
-        item.code.toLowerCase().includes(filters.code.toLowerCase());
+        product.code.toLowerCase().includes(filters.code.toLowerCase());
 
-      const matchesDepartment = !filters.department || 
-        item.department.toLowerCase().includes(filters.department.toLowerCase());
+      const matchesSaleDepartment = !filters.saleDepartment || 
+        product.saleDepartment.toLowerCase().includes(filters.saleDepartment.toLowerCase());
 
-      const matchesUnit = !filters.unit || 
-        getUnitName(item.unit || '').toLowerCase().includes(filters.unit.toLowerCase());
-
-      const matchesMinPrice = !filters.minPrice || 
-        (typeof item.price === 'number' && item.price >= parseFloat(filters.minPrice));
-
-      const matchesMaxPrice = !filters.maxPrice || 
-        (typeof item.price === 'number' && item.price <= parseFloat(filters.maxPrice));
+      const matchesProductionSegment = !filters.productionSegment || 
+        product.productionSegment.toLowerCase().includes(filters.productionSegment.toLowerCase());
 
       return matchesSearch && matchesName && matchesCode && 
-             matchesDepartment && matchesUnit && 
-             matchesMinPrice && matchesMaxPrice;
+             matchesSaleDepartment && matchesProductionSegment;
     });
 
     // Apply sorting
     if (sort.field) {
       result.sort((a, b) => {
-        let valueA: string | number;
-        let valueB: string | number;
+        let valueA = a[sort.field!];
+        let valueB = b[sort.field!];
 
-        switch (sort.field) {
-          case 'unit':
-            valueA = getUnitName(a.unit || '');
-            valueB = getUnitName(b.unit || '');
-            break;
-          case 'price':
-            valueA = a.price || 0;
-            valueB = b.price || 0;
-            break;
-          case 'name':
-            valueA = a.name;
-            valueB = b.name;
-            break;
-          case 'code':
-            valueA = a.code;
-            valueB = b.code;
-            break;
-          case 'department':
-            valueA = a.department;
-            valueB = b.department;
-            break;
-          default:
-            valueA = '';
-            valueB = '';
-        }
+        // Handle undefined values
+        if (valueA === undefined && valueB === undefined) return 0;
+        if (valueA === undefined) return sort.direction === 'asc' ? -1 : 1;
+        if (valueB === undefined) return sort.direction === 'asc' ? 1 : -1;
 
         if (typeof valueA === 'string' && typeof valueB === 'string') {
           valueA = normalizeString(valueA);
           valueB = normalizeString(valueB);
+        }
+
+        if (sort.field === 'isActive') {
+          return sort.direction === 'asc'
+            ? ((valueA as boolean) === (valueB as boolean) ? 0 : (valueA as boolean) ? -1 : 1)
+            : ((valueA as boolean) === (valueB as boolean) ? 0 : (valueA as boolean) ? 1 : -1);
         }
 
         if (valueA < valueB) return sort.direction === 'asc' ? -1 : 1;
@@ -290,8 +241,15 @@ export default function EditingProducts() {
       });
     }
 
-    setFilteredItems(result);
+    setFilteredProducts(result);
   };
+
+  const handleEditProduct = (productId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // TODO: Add edit functionality
+    console.log('Edit product:', productId);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -309,7 +267,7 @@ export default function EditingProducts() {
               <FileSpreadsheet className="h-4 w-4" />
               ورود گروهی
             </button>
-            {selectedItems.length > 0 && (
+            {selectedProducts.length > 0 && (
               <>
                 <button
                   onClick={() => setShowBulkEdit(true)}
@@ -317,7 +275,7 @@ export default function EditingProducts() {
                            hover:bg-blue-600 transition-colors"
                 >
                   <Edit2 className="h-4 w-4" />
-                  ویرایش گروهی ({selectedItems.length})
+                  ویرایش گروهی ({selectedProducts.length})
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
@@ -404,8 +362,8 @@ export default function EditingProducts() {
               </label>
               <input
                 type="text"
-                value={filters.department}
-                onChange={(e) => handleFilterChange('department', e.target.value)}
+                value={filters.saleDepartment}
+                onChange={(e) => handleFilterChange('saleDepartment', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
@@ -413,44 +371,12 @@ export default function EditingProducts() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                واحد
-              </label>
-              <select
-                value={filters.unit}
-                onChange={(e) => handleFilterChange('unit', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="">همه واحدها</option>
-                {units.map(unit => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.name} ({unit.symbol})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                حداقل قیمت
+                بخش
               </label>
               <input
-                type="number"
-                value={filters.minPrice}
-                onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                حداکثر قیمت
-              </label>
-              <input
-                type="number"
-                value={filters.maxPrice}
-                onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                type="text"
+                value={filters.productionSegment}
+                onChange={(e) => handleFilterChange('productionSegment', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
@@ -461,11 +387,11 @@ export default function EditingProducts() {
       {/* Results Summary */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-4 flex justify-between items-center">
         <div className="text-sm text-gray-600 dark:text-gray-400">
-          نمایش {filteredItems.length} مورد از {items.length} مورد
+          نمایش {filteredProducts.length} مورد از {products.length} مورد
         </div>
-        {selectedItems.length > 0 && (
+        {selectedProducts.length > 0 && (
           <div className="text-sm text-blue-600 dark:text-blue-400">
-            {selectedItems.length} مورد انتخاب شده
+            {selectedProducts.length} مورد انتخاب شده
           </div>
         )}
       </div>
@@ -478,24 +404,17 @@ export default function EditingProducts() {
               <th className="px-4 py-3 w-12">
                 <input
                   type="checkbox"
-                  checked={filteredItems.length > 0 && selectedItems.length === filteredItems.length}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      const allIds = filteredItems.map(item => item.id);
-                      setSelectedItems(allIds);
-                    } else {
-                      setSelectedItems([]);
-                    }
-                  }}
+                  checked={filteredProducts.length > 0 && selectedProducts.length === filteredProducts.length}
+                  onChange={handleSelectAll}
                   className="rounded text-blue-500 focus:ring-blue-500"
                 />
               </th>
               {[
                 { key: 'name' as const, label: 'نام' },
                 { key: 'code' as const, label: 'کد' },
-                { key: 'department' as const, label: 'بخش' },
-                { key: 'unit' as const, label: 'واحد' },
-                { key: 'price' as const, label: 'قیمت' }
+                { key: 'saleDepartment' as const, label: 'واحد فروش' },
+                { key: 'productionSegment' as const, label: 'واحد تولید' },
+                { key: 'isActive' as const, label: 'وضعیت' }
               ].map(column => (
                 <th
                   key={column.key}
@@ -513,47 +432,80 @@ export default function EditingProducts() {
                   </div>
                 </th>
               ))}
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                عملیات
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredItems.map((item) => (
-              <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                <td className="px-4 py-4">
+            {filteredProducts.map((product) => (
+              <tr 
+                key={product.id} 
+                className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                onClick={() => handleRowClick(product)}
+              >
+                <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
                   <input
                     type="checkbox"
-                    checked={selectedItems.includes(item.id)}
+                    checked={selectedProducts.includes(product.id)}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedItems(prev => [...prev, item.id]);
+                        setSelectedProducts(prev => [...prev, product.id]);
                       } else {
-                        setSelectedItems(prev => prev.filter(id => id !== item.id));
+                        setSelectedProducts(prev => prev.filter(id => id !== product.id));
                       }
-                      e.stopPropagation();
                     }}
-                    onClick={(e) => e.stopPropagation()}
                     className="rounded text-blue-500 focus:ring-blue-500"
                   />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {item.name}
+                  {product.name}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {item.code}
+                  {product.code}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {item.department}
+                  {product.saleDepartment}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {getUnitName(item.unit || '')}
+                  {product.productionSegment}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {item.price.toLocaleString()} ریال
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    product.isActive 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {product.isActive ? 'فعال' : 'غیرفعال'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => handleEditProduct(product.id, e)}
+                      className="p-1.5 text-blue-500 hover:text-blue-600 transition-colors"
+                      title="ویرایش"
+                    >
+                      <Edit2 className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProducts([product.id]);
+                        setShowDeleteConfirm(true);
+                      }}
+                      className="p-1.5 text-red-500 hover:text-red-600 transition-colors"
+                      title="حذف"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
-            {filteredItems.length === 0 && (
+            {filteredProducts.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                   موردی یافت نشد
                 </td>
               </tr>
@@ -564,18 +516,19 @@ export default function EditingProducts() {
       
       {/* Dialogs */}
       {showBulkEdit && (
-        <BulkEditDialog
+        <BulkEditProductDialog
           isOpen={showBulkEdit}
           onClose={() => setShowBulkEdit(false)}
           onConfirm={handleBulkEdit}
-          selectedCount={selectedItems.length}
-          units={units}
+          selectedCount={selectedProducts.length}
+          departments={db.getDepartmentsByType('sale')}
+          productionSegments={db.getDepartmentsByType('production')}
         />
       )}
 
       <DeleteConfirmDialog
         isOpen={showDeleteConfirm}
-        itemName={`${selectedItems.length} مورد انتخاب شده`}
+        itemName={`${selectedProducts.length} مورد انتخاب شده`}
         onConfirm={handleBulkDelete}
         onCancel={() => setShowDeleteConfirm(false)}
       />

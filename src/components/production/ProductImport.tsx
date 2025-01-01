@@ -402,18 +402,24 @@ export default function ProductImport({ onClose, onSuccess }: ProductImportProps
       const user = getCurrentUser();
 
       for (const product of selectedProducts) {
+        // First create the product definition
         const productData = {
           name: product.name,
           code: columnMapping.autoGenerateCode ? '' : product.code,
-          department: product.department,
-          price: product.price,
-          autoGenerateCode: columnMapping.autoGenerateCode,
           saleDepartment: product.department,
           productionSegment: product.department,
+          price: product.price,
+          description: '',
+          recipe: null,
+          category: null,
           type: 'product' as const
         };
 
-        await db.addProductDefinition(productData);
+        // Add the product and get back the created product with its ID
+        const newProduct = await db.addProductDefinition(productData);
+
+        // Explicitly set the active status
+        await db.updateProductStatus(newProduct.id, true);
 
         if (user) {
           logUserActivity(

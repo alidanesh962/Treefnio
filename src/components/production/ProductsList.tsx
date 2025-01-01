@@ -534,6 +534,28 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
     }
   };
 
+  // Add this new function for handling row selection
+  const handleRowClick = (product: ExtendedProductDefinition) => {
+    setSelectedProducts(prev => {
+      const isSelected = prev.includes(product.id);
+      if (isSelected) {
+        return prev.filter(id => id !== product.id);
+      } else {
+        return [...prev, product.id];
+      }
+    });
+  };
+
+  // Update the handleSelectAll function
+  const handleSelectAll = () => {
+    if (selectedProducts.length === filteredAndSortedProducts.length) {
+      setSelectedProducts([]);
+    } else {
+      const allIds = filteredAndSortedProducts.map(product => product.id);
+      setSelectedProducts(allIds);
+    }
+  };
+
   const renderGridView = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-full">
@@ -542,18 +564,20 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
             key={product.id}
             className={`bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm
                     border border-gray-200/50 dark:border-gray-700/50
-                    hover:shadow-md transition-all duration-200
+                    hover:shadow-md transition-all duration-200 cursor-pointer
                     ${selectedProducts.includes(product.id) ? 'ring-2 ring-blue-500' : ''}`}
+            onClick={() => handleRowClick(product)}
           >
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => {
-                    setSelectedProducts(prev => 
-                      prev.includes(product.id)
-                        ? prev.filter(id => id !== product.id)
-                        : [...prev, product.id]
-                    );
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (selectedProducts.includes(product.id)) {
+                      setSelectedProducts(prev => prev.filter(id => id !== product.id));
+                    } else {
+                      setSelectedProducts(prev => [...prev, product.id]);
+                    }
                   }}
                   className="text-gray-400 hover:text-gray-600 dark:text-gray-500 
                            dark:hover:text-gray-300"
@@ -754,14 +778,8 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
               <th className="px-4 py-3 w-12">
                 <input
                   type="checkbox"
-                  checked={selectedProducts.length === filteredAndSortedProducts.length && filteredAndSortedProducts.length > 0}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedProducts(filteredAndSortedProducts.map(p => p.id));
-                    } else {
-                      setSelectedProducts([]);
-                    }
-                  }}
+                  checked={filteredAndSortedProducts.length > 0 && selectedProducts.length === filteredAndSortedProducts.length}
+                  onChange={handleSelectAll}
                   className="rounded text-blue-500 focus:ring-blue-500"
                 />
               </th>
@@ -795,9 +813,15 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredAndSortedProducts.map(product => (
-              <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                <td className="px-4 py-4">
+            {filteredAndSortedProducts.map((product) => (
+              <tr 
+                key={product.id} 
+                className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer ${
+                  selectedProducts.includes(product.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                }`}
+                onClick={() => handleRowClick(product)}
+              >
+                <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={selectedProducts.includes(product.id)}
@@ -933,7 +957,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {calculateRawMaterialPrice(product).toLocaleString()}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => onProductSelect(product)}
