@@ -52,9 +52,9 @@ export class DataManagementService {
 
       // Set up default material values (collections and storage locations)
       const materialDefaults = [
-        { id: 'dry_goods', name: 'مواد خشک', defaultStorage: 'انبار مواد خشک' },
-        { id: 'dairy', name: 'لبنیات', defaultStorage: 'یخچال اصلی' },
-        { id: 'spices', name: 'ادویه‌جات', defaultStorage: 'قفسه ادویه‌جات' }
+        { id: 'restaurant_a', name: 'رستوران ایرانی', defaultStorage: 'انبار مواد خشک' },
+        { id: 'restaurant_b', name: 'رستوران فرنگی', defaultStorage: 'یخچال اصلی' },
+        { id: 'restaurant_c', name: 'فست فود', defaultStorage: 'قفسه ادویه‌جات' }
       ];
       localStorage.setItem('material_default_values', JSON.stringify(materialDefaults));
 
