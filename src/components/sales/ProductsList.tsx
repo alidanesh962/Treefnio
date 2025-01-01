@@ -118,21 +118,21 @@ export default function ProductsList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64 animate-fade-in">
+      <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden animate-scale-in">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               <th 
                 scope="col" 
-                className="px-6 py-3 text-right cursor-pointer group hover-scale"
+                className="px-6 py-3 text-right cursor-pointer group"
                 onClick={() => handleSort('code')}
               >
                 <div className="flex items-center gap-2">
@@ -144,7 +144,7 @@ export default function ProductsList() {
               </th>
               <th 
                 scope="col" 
-                className="px-6 py-3 text-right cursor-pointer group hover-scale"
+                className="px-6 py-3 text-right cursor-pointer group"
                 onClick={() => handleSort('name')}
               >
                 <div className="flex items-center gap-2">
@@ -156,7 +156,7 @@ export default function ProductsList() {
               </th>
               <th 
                 scope="col" 
-                className="px-6 py-3 text-right cursor-pointer group hover-scale"
+                className="px-6 py-3 text-right cursor-pointer group"
                 onClick={() => handleSort('price')}
               >
                 <div className="flex items-center gap-2">
@@ -168,7 +168,7 @@ export default function ProductsList() {
               </th>
               <th 
                 scope="col" 
-                className="px-6 py-3 text-right cursor-pointer group hover-scale"
+                className="px-6 py-3 text-right cursor-pointer group"
                 onClick={() => handleSort('sales')}
               >
                 <div className="flex items-center gap-2">
@@ -180,7 +180,7 @@ export default function ProductsList() {
               </th>
               <th 
                 scope="col" 
-                className="px-6 py-3 text-right cursor-pointer group hover-scale"
+                className="px-6 py-3 text-right cursor-pointer group"
                 onClick={() => handleSort('department')}
               >
                 <div className="flex items-center gap-2">
@@ -192,11 +192,11 @@ export default function ProductsList() {
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 stagger-children">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {sortedProducts.map((product) => (
               <tr 
                 key={product.id}
-                className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover-scale"
+                className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
               >
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {product.code}
@@ -219,7 +219,7 @@ export default function ProductsList() {
               <tr>
                 <td 
                   colSpan={5}
-                  className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400 animate-fade-in"
+                  className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
                   محصولی یافت نشد
                 </td>

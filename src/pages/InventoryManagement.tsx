@@ -128,22 +128,22 @@ export default function InventoryManagement() {
         } bg-white dark:bg-gray-800 w-64 transition-transform duration-200 ease-in-out
         border-l border-gray-200 dark:border-gray-700 z-30`}
       >
-        <div className="flex items-center justify-between p-4 animate-fade-in">
+        <div className="flex items-center justify-between p-4">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white">مدیریت انبار</h2>
           <button 
             onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 hover-scale"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
         
-        <nav className="mt-4 stagger-children">
+        <nav className="mt-4">
           {menuOptions.map(option => (
             <button
               key={option.id}
               onClick={() => setActiveMenu(option.id)}
-              className={`flex items-center w-full px-4 py-2 text-right gap-2 hover-scale
+              className={`flex items-center w-full px-4 py-2 text-right gap-2
                         ${activeMenu === option.id 
                           ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                           : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
@@ -158,12 +158,12 @@ export default function InventoryManagement() {
       {/* Main Content Area */}
       <div className={`flex-1 ${isSidebarOpen ? 'mr-64' : 'mr-0'} transition-all duration-200`}>
         {/* Top Navigation Bar */}
-        <nav className="bg-white dark:bg-gray-800 shadow-sm animate-fade-in">
+        <nav className="bg-white dark:bg-gray-800 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16 items-center">
               <button
                 onClick={toggleSidebar}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 hover-scale"
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 <Menu className="h-5 w-5" />
               </button>
@@ -175,7 +175,7 @@ export default function InventoryManagement() {
                 <button
                   onClick={handleLogoutClick}
                   className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg
-                           bg-red-500 hover:bg-red-600 text-white transition-colors hover-scale"
+                           bg-red-500 hover:bg-red-600 text-white transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
                   خروج
@@ -186,16 +186,14 @@ export default function InventoryManagement() {
         </nav>
 
         {/* Main Content */}
-        <main className="p-8 animate-fade-in">
+        <main className="p-8">
           {getContent()}
         </main>
       </div>
 
       {/* Fixed Position Elements */}
-      <div className="animate-fade-in">
-        <DarkModeToggle />
-        <BackButton />
-      </div>
+      <DarkModeToggle />
+      <BackButton />
 
       {/* Logout Confirmation Dialog */}
       <LogoutConfirmDialog

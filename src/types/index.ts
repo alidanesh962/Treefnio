@@ -1,7 +1,5 @@
 // src/types/index.ts
 
-import { Timestamp } from 'firebase/firestore';
-
 // Base Types
 export interface Item {
   id: string;
@@ -17,9 +15,6 @@ export interface Item {
   expiryDate?: number;
   lastPurchasePrice?: number;
   lastEntryDate?: number;
-  createdAt?: string | number;
-  updatedAt?: string | number;
-  isActive?: boolean;
 }
 
 export interface ExtendedItem extends Item {
@@ -41,8 +36,6 @@ export interface Department {
   name: string;
   type: 'sale' | 'production';
   createdAt: number;
-  updatedAt: number;
-  isActive: boolean;
 }
 
 // User Related Types
@@ -60,43 +53,27 @@ export interface User {
 
 export interface UserActivity {
   id: string;
-  type: 'create' | 'edit' | 'delete' | 'login' | 'logout';
-  entityType: string;
-  entityId: string;
-  userId: string;
-  username: string;
-  timestamp: Timestamp;
-  details: string;
-  module: string;
-}
-
-export interface UserActivityDetails {
-  id: string;
   username: string;
   fullName: string;
   type: 'create' | 'edit' | 'delete' | 'login' | 'logout';
-  module: string;
-  itemType?: string;
-  itemName?: string;
-  details?: string;
   timestamp: number;
+  module: string;
+  details?: string;
 }
 
 // Recipe Related Types
 export interface Recipe {
   id: string;
   name: string;
-  productId: string;
-  materials: Array<{
+  description: string;
+  ingredients: Array<{
     materialId: string;
     quantity: number;
-    unit: string;
-    note?: string;
   }>;
-  notes?: string;
+  finalProduct: string;
+  yield: number;
   createdAt?: number;
   updatedAt?: number;
-  isActive?: boolean;
 }
 
 export interface RecipeMaterial {
@@ -193,7 +170,6 @@ export interface StorageLocation {
 }
 
 export interface MaterialStock {
-  id: string;
   materialId: string;
   quantity: number;
   unit: string;

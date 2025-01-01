@@ -271,15 +271,38 @@ export default function InventoryEntry({ onSuccess }: InventoryEntryProps) {
       const totals = calculateTotals();
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Form Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover-scale">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
           ثبت ورودی انبار
         </h2>
-        
-        {/* Basic Info Form */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">
+        <div className="flex gap-2">
+          <button
+            onClick={handleAddRow}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white 
+                     rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            افزودن ردیف
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white 
+                     rounded-lg hover:bg-green-600 transition-colors
+                     disabled:bg-green-300 disabled:cursor-not-allowed"
+          >
+            <Save className="h-4 w-4" />
+            ثبت ورودی
+          </button>
+        </div>
+      </div>
+
+      {/* Entry Form */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+        {/* Invoice Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               فروشنده
@@ -288,14 +311,18 @@ export default function InventoryEntry({ onSuccess }: InventoryEntryProps) {
               type="text"
               value={formData.seller}
               onChange={(e) => setFormData(prev => ({ ...prev, seller: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white hover-scale"
+              className={`w-full px-3 py-2 rounded-lg border ${
+                errors.seller 
+                  ? 'border-red-300 dark:border-red-600' 
+                  : 'border-gray-300 dark:border-gray-600'
+              } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
+              placeholder="نام فروشنده"
             />
             {errors.seller && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.seller}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.seller}</p>
             )}
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               خریدار
@@ -304,14 +331,18 @@ export default function InventoryEntry({ onSuccess }: InventoryEntryProps) {
               type="text"
               value={formData.buyer}
               onChange={(e) => setFormData(prev => ({ ...prev, buyer: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white hover-scale"
+              className={`w-full px-3 py-2 rounded-lg border ${
+                errors.buyer 
+                  ? 'border-red-300 dark:border-red-600' 
+                  : 'border-gray-300 dark:border-gray-600'
+              } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
+              placeholder="نام خریدار"
             />
             {errors.buyer && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.buyer}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.buyer}</p>
             )}
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               شماره فاکتور
@@ -320,14 +351,18 @@ export default function InventoryEntry({ onSuccess }: InventoryEntryProps) {
               type="text"
               value={formData.invoiceNumber}
               onChange={(e) => setFormData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white hover-scale"
+              className={`w-full px-3 py-2 rounded-lg border ${
+                errors.invoiceNumber 
+                  ? 'border-red-300 dark:border-red-600' 
+                  : 'border-gray-300 dark:border-gray-600'
+              } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
+              placeholder="شماره فاکتور"
             />
             {errors.invoiceNumber && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.invoiceNumber}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.invoiceNumber}</p>
             )}
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               شماره سند
@@ -337,85 +372,98 @@ export default function InventoryEntry({ onSuccess }: InventoryEntryProps) {
               value={formData.documentNumber}
               onChange={(e) => setFormData(prev => ({ ...prev, documentNumber: e.target.value }))}
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white hover-scale"
+                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="شماره سند"
             />
           </div>
         </div>
-      </div>
-
-      {/* Entry Rows */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover-scale">
-        <div className="space-y-4 stagger-children">
+{/* Entry Rows */}
+<div className="space-y-4">
           {formData.rows.map((row, index) => (
-            <div key={index} className="animate-fade-in">
-              <InventoryEntryRow
-                row={row}
-                index={index}
-                materials={materials}
-                units={units}
-                onChange={(index, updates) => handleRowChange(index, updates)}
-                onDelete={() => handleRemoveRow(index)}
-                errors={{
-                  material: errors[`row_${index}_material`],
-                  quantity: errors[`row_${index}_quantity`],
-                  unit: errors[`row_${index}_unit`],
-                  price: errors[`row_${index}_price`]
-                }}
-              />
-            </div>
+            <InventoryEntryRow
+              key={index}
+              row={row}
+              index={index}
+              materials={materials}
+              units={units}
+              onChange={handleRowChange}
+              onDelete={handleRemoveRow}
+              errors={{
+                material: errors[`row_${index}_material`],
+                quantity: errors[`row_${index}_quantity`],
+                unit: errors[`row_${index}_unit`],
+                price: errors[`row_${index}_price`]
+              }}
+            />
           ))}
         </div>
 
-        <button
-          onClick={handleAddRow}
-          className="mt-4 flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 
-                   dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg hover-scale"
-        >
-          <Plus className="h-4 w-4" />
-          افزودن ردیف
-        </button>
-      </div>
-
-      {/* Totals and Submit */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover-scale">
-        <div className="flex justify-between items-center">
-          <div className="space-y-2">
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              جمع کل: {calculateTotals().grandTotal.toLocaleString()} ریال
+        {/* Totals Section */}
+        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">جمع کل:</span>
+              <span className="block text-lg font-semibold">
+                {totals.subtotal.toLocaleString()} ریال
+              </span>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">کل تخفیف:</span>
+              <span className="block text-lg font-semibold text-red-500">
+                {totals.totalDiscount.toLocaleString()} ریال
+              </span>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">کل مالیات:</span>
+              <span className="block text-lg font-semibold">
+                {totals.totalTax.toLocaleString()} ریال
+              </span>
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">کل باربری:</span>
+              <span className="block text-lg font-semibold">
+                {totals.totalShipping.toLocaleString()} ریال
+              </span>
             </div>
           </div>
-          
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg 
-                     hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed hover-scale"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                در حال ثبت...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                ثبت نهایی
-              </>
-            )}
-          </button>
+
+          <div className="mt-4 flex justify-between items-end">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              تاریخ: {getCurrentPersianDate()}
+            </div>
+            <div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">مبلغ نهایی:</span>
+              <span className="block text-xl font-bold text-green-500">
+                {totals.grandTotal.toLocaleString()} ریال
+              </span>
+            </div>
+          </div>
         </div>
+
+        {/* Error Messages */}
+        {errors.submit && (
+          <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 
+                       rounded-lg p-4 text-red-600 dark:text-red-400">
+            {errors.submit}
+          </div>
+        )}
+
+        {errors.general && (
+          <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 
+                       rounded-lg p-4 text-red-600 dark:text-red-400">
+            {errors.general}
+          </div>
+        )}
       </div>
 
-      {/* Error Messages */}
-      {Object.keys(errors).length > 0 && (
-        <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg animate-fade-in">
-          <ul className="list-disc list-inside space-y-1">
-            {Object.entries(errors).map(([key, value]) => (
-              <li key={key}>{value}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Additional Information */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-sm text-blue-600 dark:text-blue-400">
+        <ul className="list-disc list-inside space-y-1">
+          <li>برای افزودن ردیف جدید از دکمه "افزودن ردیف" استفاده کنید</li>
+          <li>تمامی قیمت‌ها به ریال محاسبه می‌شوند</li>
+          <li>پس از ثبت، موجودی انبار به صورت خودکار به‌روزرسانی می‌شود</li>
+        </ul>
+      </div>
     </div>
   );
 }

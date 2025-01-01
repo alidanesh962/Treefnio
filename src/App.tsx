@@ -8,26 +8,23 @@ import InventoryManagement from './pages/InventoryManagement';
 import ReportingPage from './pages/ReportingPage';
 import SalesModule from './pages/SalesModule';
 import ProductionModule from './pages/ProductionModule';
-import { FirebaseProvider } from './contexts/FirebaseContext';
 import 'react-datepicker/dist/react-datepicker.css';
 import './styles/persian-datepicker.css';
 
 function App() {
   return (
-    <FirebaseProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/inventory" element={<InventoryManagement />} />
-          <Route path="/reports" element={<ReportingPage />} />
-          <Route path="/sales" element={<SalesModule />} />
-          <Route path="/production" element={<ProductionModule />} />
-          <Route path="/" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
-    </FirebaseProvider>
+    <Router>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/inventory" element={<InventoryManagement />} />
+        <Route path="/reports" element={<ReportingPage />} />
+        <Route path="/sales" element={<SalesModule />} />
+        <Route path="/production" element={<ProductionModule />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
   );
 }
 
