@@ -490,7 +490,7 @@ const EditingMP: React.FC = () => {
               {[
                 { key: 'name' as const, label: 'نام' },
                 { key: 'code' as const, label: 'کد' },
-                { key: 'department' as const, label: 'بخش' },
+                { key: 'department' as const, label: 'گروه' },
                 { key: 'stock' as const, label: 'موجودی' },
                 { key: 'minStock' as const, label: 'حداقل موجودی' },
                 { key: 'location' as const, label: 'محل نگهداری' },

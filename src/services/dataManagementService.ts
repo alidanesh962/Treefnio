@@ -28,6 +28,10 @@ export class DataManagementService {
       await db.clearRecipes();
       await db.clearUnits();
       await db.clearSales();
+      await db.clearMaterialGroups();
+      // Clear other data
+      localStorage.removeItem('material_default_values');
+      localStorage.removeItem('restaurant_departments');
       console.log('All data has been reset successfully');
     } catch (error) {
       console.error('Error resetting data:', error);
@@ -46,6 +50,33 @@ export class DataManagementService {
       ];
       await db.insertUnits(units);
 
+      // Set up default material values (collections and storage locations)
+      const materialDefaults = [
+        { id: 'dry_goods', name: 'مواد خشک', defaultStorage: 'انبار مواد خشک' },
+        { id: 'dairy', name: 'لبنیات', defaultStorage: 'یخچال اصلی' },
+        { id: 'spices', name: 'ادویه‌جات', defaultStorage: 'قفسه ادویه‌جات' }
+      ];
+      localStorage.setItem('material_default_values', JSON.stringify(materialDefaults));
+
+      // Set up material groups
+      const materialGroups = [
+        { id: 'baking', name: 'مواد پخت' },
+        { id: 'dairy', name: 'لبنیات' },
+        { id: 'spices', name: 'ادویه‌جات' },
+        { id: 'oils', name: 'روغن‌ها' },
+        { id: 'sweets', name: 'شیرینی‌جات' }
+      ];
+      localStorage.setItem('material_food_groups', JSON.stringify(materialGroups));
+
+      // Set up default departments
+      const defaultDepartments = [
+        { id: 'test_sales', name: 'تست واحد فروش', type: 'sale' as const, createdAt: Date.now() },
+        { id: 'restaurant', name: 'رستوران', type: 'sale' as const, createdAt: Date.now() },
+        { id: 'cafe', name: 'کافه', type: 'sale' as const, createdAt: Date.now() },
+        { id: 'test_prod', name: 'تست واحد تولید', type: 'production' as const, createdAt: Date.now() }
+      ];
+      localStorage.setItem('restaurant_departments', JSON.stringify(defaultDepartments));
+
       const currentDate = new Date().toISOString();
 
       // Generate and insert sample materials
@@ -58,7 +89,10 @@ export class DataManagementService {
           unitPrice: 150000,
           currentStock: 100,
           minimumStock: 20,
-          category: 'baking',
+          category: 'مواد خشک',
+          foodGroup: 'مواد پخت',
+          storageLocation: 'انبار مواد خشک',
+          expiryDate: new Date('2025/03/19').getTime(),
           isActive: true,
           createdAt: currentDate,
           updatedAt: currentDate
@@ -71,7 +105,10 @@ export class DataManagementService {
           unitPrice: 200000,
           currentStock: 50,
           minimumStock: 10,
-          category: 'baking',
+          category: 'مواد خشک',
+          foodGroup: 'مواد پخت',
+          storageLocation: 'انبار مواد خشک',
+          expiryDate: new Date('2025/03/19').getTime(),
           isActive: true,
           createdAt: currentDate,
           updatedAt: currentDate
@@ -84,7 +121,10 @@ export class DataManagementService {
           unitPrice: 180000,
           currentStock: 200,
           minimumStock: 50,
-          category: 'dairy',
+          category: 'لبنیات',
+          foodGroup: 'لبنیات',
+          storageLocation: 'یخچال اصلی',
+          expiryDate: new Date('2024/03/04').getTime(),
           isActive: true,
           createdAt: currentDate,
           updatedAt: currentDate
@@ -97,7 +137,10 @@ export class DataManagementService {
           unitPrice: 800000,
           currentStock: 30,
           minimumStock: 5,
-          category: 'baking',
+          category: 'مواد خشک',
+          foodGroup: 'شیرینی‌جات',
+          storageLocation: 'انبار خنک',
+          expiryDate: new Date('2024/09/20').getTime(),
           isActive: true,
           createdAt: currentDate,
           updatedAt: currentDate
@@ -164,7 +207,7 @@ export class DataManagementService {
             { materialId: 'flour', unit: 'kg', amount: 0.5, unitPrice: 150000, totalPrice: 75000, note: 'آرد مخصوص شیرینی‌پزی' },
             { materialId: 'sugar', unit: 'kg', amount: 0.3, unitPrice: 200000, totalPrice: 60000, note: 'شکر سفید' },
             { materialId: 'milk', unit: 'l', amount: 0.4, unitPrice: 180000, totalPrice: 72000, note: 'شیر پرچرب' },
-            { materialId: 'chocolate', unit: 'kg', amount: 0.2, unitPrice: 800000, totalPrice: 160000, note: 'شکلات تلخ ��' }
+            { materialId: 'chocolate', unit: 'kg', amount: 0.2, unitPrice: 800000, totalPrice: 160000, note: 'شکلات تلخ ۸۵٪' }
           ],
           notes: 'دستور پخت اصلی کیک شکلاتی با شکلات تلخ',
           isActive: true,
@@ -209,7 +252,7 @@ export class DataManagementService {
             { materialId: 'sugar', unit: 'kg', amount: 0.2, unitPrice: 200000, totalPrice: 40000, note: 'شکر سفید' },
             { materialId: 'milk', unit: 'l', amount: 0.3, unitPrice: 180000, totalPrice: 54000, note: 'شیر کم‌چرب' }
           ],
-          notes: 'دستور پخت کیک میوه��ای با تزیین میوه‌های تازه فصل',
+          notes: 'دستور پخت کیک میوه‌ای با تزیین میوه‌های تازه فصل',
           isActive: true,
           createdAt: getCurrentJalaliTimestamp(),
           updatedAt: getCurrentJalaliTimestamp()
@@ -222,10 +265,13 @@ export class DataManagementService {
       const startDate = new Date();
       startDate.setMonth(startDate.getMonth() - 1); // Start from last month
 
-      // Ensure required departments exist
-      const departments = db.getDepartments();
-      const cafe = departments.find(d => d.name === 'کافه' && d.type === 'sale') || db.addDepartment('کافه', 'sale');
-      const restaurant = departments.find(d => d.name === 'رستوران' && d.type === 'sale') || db.addDepartment('رستوران', 'sale');
+      // Use the existing departments
+      const cafe = defaultDepartments.find(d => d.name === 'کافه');
+      const restaurant = defaultDepartments.find(d => d.name === 'رستوران');
+
+      if (!cafe || !restaurant) {
+        throw new Error('Required departments not found');
+      }
 
       // Generate daily sales for the past month
       for (let i = 0; i < 30; i++) {
@@ -305,11 +351,11 @@ export class DataManagementService {
 
       // Generate sample material import file
       const materialData = [
-        ['کد', 'نام', 'واحد', 'قیمت واحد', 'موجودی', 'حداقل موجودی', 'دسته‌بندی'],
-        ['FL001', 'آرد', 'kg', '150000', '100', '20', 'baking'],
-        ['SG001', 'شکر', 'kg', '200000', '50', '10', 'baking'],
-        ['ML001', 'شیر', 'l', '180000', '200', '50', 'dairy'],
-        ['CH001', 'شکلات', 'kg', '800000', '30', '5', 'baking']
+        ['کد', 'نام', 'مجموعه', 'گروه مواد غذایی', 'واحد', 'قیمت واحد', 'موجودی', 'حداقل موجودی', 'تاریخ انقضا', 'محل نگهداری'],
+        ['FL001', 'آرد', 'مواد خشک', 'مواد پخت', 'kg', '150000', '100', '20', '1403/12/29', 'انبار مواد خشک'],
+        ['SG001', 'شکر', 'مواد خشک', 'مواد پخت', 'kg', '200000', '50', '10', '1403/12/29', 'انبار مواد خشک'],
+        ['ML001', 'شیر', 'مواد تر', 'لبنیات', 'l', '180000', '200', '50', '1402/12/15', 'یخچال اصلی'],
+        ['CH001', 'شکلات', 'مواد خشک', 'مواد پخت', 'kg', '800000', '30', '5', '1403/06/30', 'انبار خنک']
       ];
       const materialWB = XLSX.utils.book_new();
       const materialWS = XLSX.utils.aoa_to_sheet(materialData);

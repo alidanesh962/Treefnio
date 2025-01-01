@@ -1,23 +1,18 @@
-// src/components/settings/MaterialValuesManagement.tsx
 import React, { useState, useEffect } from 'react';
-import { Save, Plus, Trash2, Edit2 } from 'lucide-react';
-import { db } from '../../database';
+import { Save, Trash2, Edit2 } from 'lucide-react';
 
-// Updated interface for material default values
-interface MaterialDefaults {
+interface MaterialGroup {
   id: string;
   name: string;
-  defaultStorage: string;
 }
 
-const MATERIAL_DEFAULTS_KEY = 'material_default_values';
+const MATERIAL_GROUPS_KEY = 'material_food_groups';
 
-export default function MaterialValuesManagement() {
-  const [values, setValues] = useState<MaterialDefaults[]>([]);
+export default function MaterialGroupsManagement() {
+  const [values, setValues] = useState<MaterialGroup[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newValue, setNewValue] = useState<Omit<MaterialDefaults, 'id'>>({
-    name: '',
-    defaultStorage: ''
+  const [newValue, setNewValue] = useState<Omit<MaterialGroup, 'id'>>({
+    name: ''
   });
 
   useEffect(() => {
@@ -25,7 +20,7 @@ export default function MaterialValuesManagement() {
   }, []);
 
   const loadValues = () => {
-    const savedValues = localStorage.getItem(MATERIAL_DEFAULTS_KEY);
+    const savedValues = localStorage.getItem(MATERIAL_GROUPS_KEY);
     if (savedValues) {
       setValues(JSON.parse(savedValues));
     }
@@ -45,30 +40,28 @@ export default function MaterialValuesManagement() {
       });
     }
 
-    localStorage.setItem(MATERIAL_DEFAULTS_KEY, JSON.stringify(updatedValues));
+    localStorage.setItem(MATERIAL_GROUPS_KEY, JSON.stringify(updatedValues));
     setValues(updatedValues);
     resetForm();
   };
 
-  const handleEdit = (value: MaterialDefaults) => {
+  const handleEdit = (value: MaterialGroup) => {
     setEditingId(value.id);
     setNewValue({
-      name: value.name,
-      defaultStorage: value.defaultStorage
+      name: value.name
     });
   };
 
   const handleDelete = (id: string) => {
     const updatedValues = values.filter(v => v.id !== id);
-    localStorage.setItem(MATERIAL_DEFAULTS_KEY, JSON.stringify(updatedValues));
+    localStorage.setItem(MATERIAL_GROUPS_KEY, JSON.stringify(updatedValues));
     setValues(updatedValues);
   };
 
   const resetForm = () => {
     setEditingId(null);
     setNewValue({
-      name: '',
-      defaultStorage: ''
+      name: ''
     });
   };
 
@@ -77,42 +70,22 @@ export default function MaterialValuesManagement() {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
         <div className="p-6">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
-           انبار
+            گروه مواد اولیه
           </h3>
 
           {/* Form for new/editing values */}
           <div className="grid grid-cols-1 gap-6 mb-8">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                نام سازمان
+                نام گروه
               </label>
               <input
                 type="text"
                 value={newValue.name}
-                onChange={(e) => setNewValue(prev => ({
-                  ...prev,
-                  name: e.target.value
-                }))}
+                onChange={(e) => setNewValue({ name: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
                          bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="انبار"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                نام انبار
-              </label>
-              <input
-                type="text"
-                value={newValue.defaultStorage}
-                onChange={(e) => setNewValue(prev => ({
-                  ...prev,
-                  defaultStorage: e.target.value
-                }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="انبار پیش‌فرض"
+                placeholder="مثال: مواد پخت"
               />
             </div>
 
@@ -140,7 +113,7 @@ export default function MaterialValuesManagement() {
           {/* List of existing values */}
           <div className="mt-8">
             <h4 className="text-md font-medium text-gray-800 dark:text-white mb-4">
-              مقادیر موجود
+              گروه‌های موجود
             </h4>
             <div className="space-y-4">
               {values.map(value => (
@@ -153,9 +126,6 @@ export default function MaterialValuesManagement() {
                     <h5 className="font-medium text-gray-900 dark:text-white">
                       {value.name}
                     </h5>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      انبار: {value.defaultStorage}
-                    </p>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -175,7 +145,7 @@ export default function MaterialValuesManagement() {
               ))}
               {values.length === 0 && (
                 <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-                  هیچ مقدار پیش‌فرضی تعریف نشده است
+                  هیچ گروهی تعریف نشده است
                 </p>
               )}
             </div>
@@ -184,4 +154,4 @@ export default function MaterialValuesManagement() {
       </div>
     </div>
   );
-}
+} 

@@ -14,17 +14,20 @@ interface MaterialFormData {
   code: string;
   department: string;
   price: number;
+  unit: string;
 }
 
 export default function MaterialManagement() {
   const [materials, setMaterials] = useState<Item[]>([]);
+  const [units, setUnits] = useState<MaterialUnit[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Item | null>(null);
   const [formData, setFormData] = useState<MaterialFormData>({
     name: '',
     code: '',
     department: '',
-    price: 0
+    price: 0,
+    unit: ''
   });
   const [departments, setDepartments] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -33,6 +36,7 @@ export default function MaterialManagement() {
     materialId: string;
     materialName: string;
   }>({ isOpen: false, materialId: '', materialName: '' });
+  const [autoGenerateCode, setAutoGenerateCode] = useState(false);
 
   const { emitUpdate } = useRealTimeUpdates('material-update', (data) => {
     switch (data.type) {
@@ -53,14 +57,29 @@ export default function MaterialManagement() {
   useEffect(() => {
     loadMaterials();
     loadDepartments();
+    loadUnits();
   }, []);
+
+  const loadUnits = () => {
+    const loadedUnits = db.getMaterialUnits();
+    setUnits(loadedUnits);
+    if (!formData.unit && loadedUnits.length > 0) {
+      setFormData(prev => ({ ...prev, unit: loadedUnits[0].id }));
+    }
+  };
 
   const loadMaterials = () => {
     setMaterials(db.getMaterials());
   };
 
   const loadDepartments = () => {
-    setDepartments(db.getDepartments().map(dept => dept.name));
+    const savedGroups = localStorage.getItem('material_food_groups');
+    if (savedGroups) {
+      const groups = JSON.parse(savedGroups);
+      setDepartments(groups.map((group: { name: string }) => group.name));
+    } else {
+      setDepartments([]);
+    }
   };
 
   const resetForm = () => {
@@ -68,7 +87,8 @@ export default function MaterialManagement() {
       name: '',
       code: '',
       department: '',
-      price: 0
+      price: 0,
+      unit: units[0]?.id || ''
     });
     setErrors({});
     setEditingMaterial(null);
@@ -81,11 +101,14 @@ export default function MaterialManagement() {
     if (!formData.name.trim()) {
       newErrors.name = 'نام ماده اولیه الزامی است';
     }
-    if (!formData.code.trim()) {
+    if (!autoGenerateCode && !formData.code.trim()) {
       newErrors.code = 'کد ماده اولیه الزامی است';
     }
     if (!formData.department) {
       newErrors.department = 'انتخاب گروه الزامی است';
+    }
+    if (!formData.unit) {
+      newErrors.unit = 'انتخاب واحد الزامی است';
     }
     if (formData.price <= 0) {
       newErrors.price = 'قیمت باید بزرگتر از صفر باشد';
@@ -103,13 +126,17 @@ export default function MaterialManagement() {
   const handleSubmit = () => {
     if (!validate()) return;
 
-    const materialData = {
-      ...formData,
-      type: 'material' as const
+    const materialData: Omit<Item, 'id'> = {
+      name: formData.name.trim(),
+      code: autoGenerateCode ? `MAT${Date.now().toString().slice(-6)}` : formData.code.trim(),
+      department: formData.department,
+      price: formData.price,
+      unit: formData.unit || units[0]?.id || '',
+      type: 'material'
     };
 
     if (editingMaterial) {
-      db.updateMaterial({ ...editingMaterial, ...materialData });
+      db.updateMaterial({ ...editingMaterial, ...materialData } as Item);
       const user = getCurrentUser();
       if (user) {
         logUserActivity(
@@ -144,7 +171,8 @@ export default function MaterialManagement() {
       name: material.name,
       code: material.code,
       department: material.department,
-      price: material.price
+      price: material.price,
+      unit: material.unit || units[0]?.id || ''
     });
     setShowForm(true);
   };
@@ -212,18 +240,65 @@ export default function MaterialManagement() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 کد ماده اولیه
               </label>
-              <input
-                type="text"
-                value={formData.code}
-                onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={formData.code}
+                  onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                  disabled={autoGenerateCode}
+                  className={`flex-1 px-3 py-2 rounded-lg border ${
+                    errors.code 
+                      ? 'border-red-300 dark:border-red-600' 
+                      : 'border-gray-300 dark:border-gray-600'
+                  } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white ${
+                    autoGenerateCode ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="autoGenerateCode"
+                    checked={autoGenerateCode}
+                    onChange={(e) => {
+                      setAutoGenerateCode(e.target.checked);
+                      if (e.target.checked) {
+                        setFormData(prev => ({ ...prev, code: '' }));
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="autoGenerateCode" className="text-sm text-gray-600 dark:text-gray-400">
+                    تولید خودکار
+                  </label>
+                </div>
+              </div>
+              {errors.code && (
+                <p className="mt-1 text-sm text-red-500">{errors.code}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                واحد
+              </label>
+              <select
+                value={formData.unit}
+                onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
                 className={`w-full px-3 py-2 rounded-lg border ${
-                  errors.code 
+                  errors.unit 
                     ? 'border-red-300 dark:border-red-600' 
                     : 'border-gray-300 dark:border-gray-600'
                 } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
-              />
-              {errors.code && (
-                <p className="mt-1 text-sm text-red-500">{errors.code}</p>
+              >
+                <option value="">انتخاب واحد...</option>
+                {units.map(unit => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.name} ({unit.symbol})
+                  </option>
+                ))}
+              </select>
+              {errors.unit && (
+                <p className="mt-1 text-sm text-red-500">{errors.unit}</p>
               )}
             </div>
 
@@ -308,6 +383,9 @@ export default function MaterialManagement() {
                 گروه
               </th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                واحد
+              </th>
+              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 قیمت (ریال)
               </th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
@@ -316,42 +394,48 @@ export default function MaterialManagement() {
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {materials.map(material => (
-              <tr key={material.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {material.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {material.code}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {material.department}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {material.price.toLocaleString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEdit(material)}
-                      className="p-1 text-blue-500 hover:text-blue-600 transition-colors"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setShowDeleteConfirm({
-                        isOpen: true,
-                        materialId: material.id,
-                        materialName: material.name
-                      })}
-                      className="p-1 text-red-500 hover:text-red-600 transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {materials.map(material => {
+              const materialUnit = units.find(u => u.id === material.unit);
+              return (
+                <tr key={material.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {material.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {material.code}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {material.department}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {materialUnit ? `${materialUnit.name} (${materialUnit.symbol})` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {material.price.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEdit(material)}
+                        className="p-1 text-blue-500 hover:text-blue-600 transition-colors"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm({
+                          isOpen: true,
+                          materialId: material.id,
+                          materialName: material.name
+                        })}
+                        className="p-1 text-red-500 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

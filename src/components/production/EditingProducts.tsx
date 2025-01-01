@@ -52,6 +52,14 @@ export default function EditingProducts() {
   const [sort, setSort] = useState<SortState>({ field: undefined, direction: 'asc' });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
+  const [layout, setLayout] = useState<'grid' | 'list'>(() => {
+    return localStorage.getItem('productsListLayout') as 'grid' | 'list' || 'grid';
+  });
+
+  // Save layout preference whenever it changes
+  useEffect(() => {
+    localStorage.setItem('productsListLayout', layout);
+  }, [layout]);
 
   useEffect(() => {
     loadAllItems();
@@ -64,7 +72,25 @@ export default function EditingProducts() {
 
   const loadAllItems = () => {
     const products = db.getProducts().map(item => ({ ...item, type: 'product' as const }));
-    setItems(products);
+    const productDefinitions = db.getProductDefinitions().map(def => ({
+      id: def.id,
+      name: def.name,
+      code: def.code,
+      department: def.productionSegment,
+      price: 0,
+      type: 'product' as const,
+      isActive: def.isActive
+    }));
+
+    const productMap = new Map();
+    products.forEach(p => productMap.set(p.code, p));
+    productDefinitions.forEach(p => {
+      if (!productMap.has(p.code)) {
+        productMap.set(p.code, p);
+      }
+    });
+
+    setItems(Array.from(productMap.values()));
   };
 
   const loadUnits = () => {
@@ -85,17 +111,27 @@ export default function EditingProducts() {
 
   // Fixed Selection Handlers
   const handleSelectAll = () => {
-    if (selectedItems.length === filteredItems.length) {
-      setSelectedItems([]);
-    } else {
-      const newSelectedItems = filteredItems.map(item => item.id);
-      setSelectedItems(newSelectedItems);
-    }
+    const visibleIds = filteredItems.map(item => item.id);
+    setSelectedItems(prev => {
+      const allSelected = visibleIds.every(id => prev.includes(id));
+      if (allSelected) {
+        // Deselect only visible items
+        return prev.filter(id => !visibleIds.includes(id));
+      } else {
+        // Select all visible items that aren't already selected
+        const newSelected = new Set([...prev, ...visibleIds]);
+        return Array.from(newSelected);
+      }
+    });
   };
 
   const handleSelectItem = (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    
     setSelectedItems(prev => {
-      if (prev.includes(itemId)) {
+      const isSelected = prev.includes(itemId);
+      if (isSelected) {
         return prev.filter(id => id !== itemId);
       } else {
         return [...prev, itemId];
@@ -179,10 +215,14 @@ export default function EditingProducts() {
 
     // Apply filters
     result = result.filter(item => {
+      const searchLower = filters.search.toLowerCase();
       const matchesSearch = !filters.search || 
-        Object.values(item).some(value => 
-          String(value).toLowerCase().includes(filters.search.toLowerCase())
-        );
+        Object.entries(item).some(([key, value]) => {
+          if (typeof value === 'string') {
+            return value.toLowerCase().includes(searchLower);
+          }
+          return String(value).toLowerCase().includes(searchLower);
+        });
 
       const matchesName = !filters.name || 
         item.name.toLowerCase().includes(filters.name.toLowerCase());
@@ -197,10 +237,10 @@ export default function EditingProducts() {
         getUnitName(item.unit || '').toLowerCase().includes(filters.unit.toLowerCase());
 
       const matchesMinPrice = !filters.minPrice || 
-        item.price >= parseFloat(filters.minPrice);
+        (typeof item.price === 'number' && item.price >= parseFloat(filters.minPrice));
 
       const matchesMaxPrice = !filters.maxPrice || 
-        item.price <= parseFloat(filters.maxPrice);
+        (typeof item.price === 'number' && item.price <= parseFloat(filters.maxPrice));
 
       return matchesSearch && matchesName && matchesCode && 
              matchesDepartment && matchesUnit && 
@@ -213,19 +253,30 @@ export default function EditingProducts() {
         let valueA: string | number;
         let valueB: string | number;
 
-        if (!sort.field) {
-          return 0;
-        }
-
-        if (sort.field === 'unit') {
-          valueA = getUnitName(sort.field in a && a[sort.field] ? String(a[sort.field]) : '');
-          valueB = getUnitName(sort.field in b && b[sort.field] ? String(b[sort.field]) : '');
-        } else if (sort.field === 'price') {
-          valueA = sort.field in a ? Number(a[sort.field]) || 0 : 0;
-          valueB = sort.field in b ? Number(b[sort.field]) || 0 : 0;
-        } else {
-          valueA = sort.field in a ? String(a[sort.field]) : '';
-          valueB = sort.field in b ? String(b[sort.field]) : '';
+        switch (sort.field) {
+          case 'unit':
+            valueA = getUnitName(a.unit || '');
+            valueB = getUnitName(b.unit || '');
+            break;
+          case 'price':
+            valueA = a.price || 0;
+            valueB = b.price || 0;
+            break;
+          case 'name':
+            valueA = a.name;
+            valueB = b.name;
+            break;
+          case 'code':
+            valueA = a.code;
+            valueB = b.code;
+            break;
+          case 'department':
+            valueA = a.department;
+            valueB = b.department;
+            break;
+          default:
+            valueA = '';
+            valueB = '';
         }
 
         if (typeof valueA === 'string' && typeof valueB === 'string') {

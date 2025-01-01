@@ -44,6 +44,7 @@ export default function MaterialCreateDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showUnitForm, setShowUnitForm] = useState(false);
   const [newUnitData, setNewUnitData] = useState({ name: '', symbol: '' });
+  const [autoGenerateCode, setAutoGenerateCode] = useState(false);
 
   // Step 2: Type the materialDefaults state properly
   const [materialDefaults, setMaterialDefaults] = useState<MaterialDefault[]>(getMaterialDefaults());
@@ -79,7 +80,7 @@ export default function MaterialCreateDialog({
     if (!formData.name.trim()) {
       newErrors.name = 'نام ماده اولیه الزامی است';
     }
-    if (!formData.code.trim()) {
+    if (!autoGenerateCode && !formData.code.trim()) {
       newErrors.code = 'کد ماده اولیه الزامی است';
     }
     if (!formData.department.trim()) {
@@ -122,9 +123,14 @@ export default function MaterialCreateDialog({
 
       const expiryTimestamp = formData.expiryDate ? new Date(formData.expiryDate).getTime() : undefined;
 
+      // Generate code if auto-generate is enabled
+      const materialCode = autoGenerateCode 
+        ? `MAT${Date.now().toString().slice(-6)}` 
+        : formData.code.trim();
+
       const materialData = {
         name: formData.name.trim(),
-        code: formData.code.trim(),
+        code: materialCode,
         department: formData.department.trim(),
         price: formData.price,
         stock: formData.stock,
@@ -264,16 +270,38 @@ export default function MaterialCreateDialog({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               کد ماده اولیه
             </label>
-            <input
-              type="text"
-              value={formData.code}
-              onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
-              className={`w-full px-3 py-2 rounded-lg border ${
-                errors.code 
-                  ? 'border-red-300 dark:border-red-600' 
-                  : 'border-gray-300 dark:border-gray-600'
-              } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white`}
-            />
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={formData.code}
+                onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                disabled={autoGenerateCode}
+                className={`flex-1 px-3 py-2 rounded-lg border ${
+                  errors.code 
+                    ? 'border-red-300 dark:border-red-600' 
+                    : 'border-gray-300 dark:border-gray-600'
+                } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white ${
+                  autoGenerateCode ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="autoGenerateCode"
+                  checked={autoGenerateCode}
+                  onChange={(e) => {
+                    setAutoGenerateCode(e.target.checked);
+                    if (e.target.checked) {
+                      setFormData(prev => ({ ...prev, code: '' }));
+                    }
+                  }}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="autoGenerateCode" className="text-sm text-gray-600 dark:text-gray-400">
+                  تولید خودکار
+                </label>
+              </div>
+            </div>
             {errors.code && (
               <p className="mt-1 text-sm text-red-500">{errors.code}</p>
             )}

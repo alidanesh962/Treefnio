@@ -67,7 +67,9 @@ interface SortConfig {
 
 export default function ProductsList({ onProductSelect }: ProductsListProps) {
   // Layout and basic state
-  const [layout, setLayout] = useState<'grid' | 'table'>('grid');
+  const [layout, setLayout] = useState<'grid' | 'table'>(() => {
+    return localStorage.getItem('productsListLayout') as 'grid' | 'table' || 'grid';
+  });
   const [products, setProducts] = useState<ExtendedProductDefinition[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +92,11 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
     productIds: string[];
     count: number;
   }>({ isOpen: false, productIds: [], count: 0 });
+
+  // Save layout preference whenever it changes
+  useEffect(() => {
+    localStorage.setItem('productsListLayout', layout);
+  }, [layout]);
 
   useEffect(() => {
     loadProducts();
@@ -128,7 +135,7 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
       setProducts(allProducts);
     } catch (err) {
       console.error('Error loading products:', err);
-      setError('خطا در بارگی��ی محصولات');
+      setError('خطا در بارگیری محصولات');
     } finally {
       setIsLoading(false);
     }

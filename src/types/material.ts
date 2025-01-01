@@ -7,7 +7,10 @@ export interface Material {
   currentStock: number;
   minimumStock: number;
   description?: string;
-  category?: string;
+  category: string;
+  foodGroup: string;
+  storageLocation: string;
+  expiryDate: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

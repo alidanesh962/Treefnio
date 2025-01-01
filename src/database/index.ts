@@ -570,7 +570,7 @@ export class Database {
     const departments = this.getDepartments();
     const filteredDepartments = departments.filter(d => d.id !== id);
     if (filteredDepartments.length < departments.length) {
-      this.saveDepartments(filteredDepartments);
+      localStorage.setItem('restaurant_departments', JSON.stringify(filteredDepartments));
       return true;
     }
     return false;
@@ -858,6 +858,11 @@ export class Database {
     return Promise.resolve();
   }
 
+  clearMaterialGroups(): Promise<void> {
+    localStorage.removeItem('material_food_groups');
+    return Promise.resolve();
+  }
+
   // Insert Operations
   insertUnits(units: MaterialUnit[]): Promise<void> {
     this.saveMaterialUnits(units);
@@ -869,8 +874,11 @@ export class Database {
     const convertedMaterials = materials.map(material => ({
       ...material,
       type: 'material' as const,
-      department: material.category || 'default',
-      price: material.unitPrice
+      department: material.category,
+      price: material.unitPrice,
+      stock: material.currentStock,
+      minStock: material.minimumStock,
+      location: material.storageLocation
     }));
     const updatedMaterials = [...existingMaterials, ...convertedMaterials];
     this.saveMaterials(updatedMaterials);
@@ -933,6 +941,37 @@ export class Database {
     } else {
       localStorage.removeItem(REFERENCE_DATASET_KEY);
     }
+  }
+
+  // Material Groups Operations
+  getMaterialGroups(): { id: string; name: string; }[] {
+    const stored = localStorage.getItem('material_food_groups');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  saveMaterialGroups(groups: { id: string; name: string; }[]): void {
+    localStorage.setItem('material_food_groups', JSON.stringify(groups));
+  }
+
+  deleteMaterialGroup(id: string): boolean {
+    const groups = this.getMaterialGroups();
+    const filteredGroups = groups.filter(g => g.id !== id);
+    if (filteredGroups.length < groups.length) {
+      this.saveMaterialGroups(filteredGroups);
+      return true;
+    }
+    return false;
+  }
+
+  addMaterialGroup(name: string): { id: string; name: string; } {
+    const groups = this.getMaterialGroups();
+    const newGroup = {
+      id: Date.now().toString(),
+      name
+    };
+    groups.push(newGroup);
+    this.saveMaterialGroups(groups);
+    return newGroup;
   }
 }
 
