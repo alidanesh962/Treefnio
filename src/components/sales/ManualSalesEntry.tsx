@@ -35,6 +35,10 @@ export default function ManualSalesEntry({ onSave, products }: ManualSalesEntryP
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+<<<<<<< HEAD
+=======
+  const [showHeader] = useState(true);
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
 
   const getDepartmentName = (id: string, type: 'sale' | 'production'): string => {
     try {
@@ -271,6 +275,7 @@ export default function ManualSalesEntry({ onSave, products }: ManualSalesEntryP
           </div>
         </div>
 
+<<<<<<< HEAD
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700">
@@ -386,6 +391,112 @@ export default function ManualSalesEntry({ onSave, products }: ManualSalesEntryP
               ))}
             </tbody>
           </table>
+=======
+        <div className="overflow-visible">
+          {showHeader && (
+            <div className="grid grid-cols-12 gap-4 mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+              <div className="col-span-1"></div>
+              <div className="col-span-3">محصول</div>
+              <div className="col-span-2">تعداد</div>
+              <div className="col-span-2">قیمت واحد (ریال)</div>
+              <div className="col-span-2">هزینه مواد</div>
+              <div className="col-span-2">قیمت کل (ریال)</div>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {entries.map((entry) => (
+              <div key={entry.id} className="grid grid-cols-12 gap-4 items-start bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg relative">
+                <div className="col-span-1 flex justify-center">
+                  <button
+                    onClick={() => removeEntry(entry.id)}
+                    className="p-2 text-red-500 hover:text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                    title="حذف"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="col-span-3">
+                  <div className="space-y-1">
+                    <ProductSelector
+                      value={entry.product || null}
+                      onChange={(product) => updateEntry(entry.id, 'product', product)}
+                      suggestedProducts={products}
+                    />
+                    {validationErrors[`${entry.id}-product`] && (
+                      <p className="text-xs text-red-500">
+                        {validationErrors[`${entry.id}-product`]}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="col-span-2">
+                  <div className="space-y-1">
+                    <input
+                      type="number"
+                      value={entry.quantity || ''}
+                      onChange={(e) => updateEntry(entry.id, 'quantity', parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                               bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-left"
+                      min="0"
+                      step="1"
+                      placeholder="تعداد"
+                      dir="ltr"
+                    />
+                    {validationErrors[`${entry.id}-quantity`] && (
+                      <p className="text-xs text-red-500">
+                        {validationErrors[`${entry.id}-quantity`]}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="col-span-2">
+                  <input
+                    type="number"
+                    value={entry.unitPrice || ''}
+                    onChange={(e) => updateEntry(entry.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                             bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-left"
+                    min="0"
+                    step="1000"
+                    placeholder="قیمت واحد"
+                    dir="ltr"
+                  />
+                  {validationErrors[`${entry.id}-price`] && (
+                    <p className="text-xs text-red-500">
+                      {validationErrors[`${entry.id}-price`]}
+                    </p>
+                  )}
+                </div>
+
+                <div className="col-span-2">
+                  <input
+                    type="text"
+                    value={entry.materialCost?.toLocaleString() || '-'}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                             bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-left"
+                    readOnly
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <input
+                    type="text"
+                    value={(entry.quantity * entry.unitPrice).toLocaleString() || ''}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                             bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white text-left"
+                    readOnly
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
         </div>
 
         {error && (
@@ -398,7 +509,14 @@ export default function ManualSalesEntry({ onSave, products }: ManualSalesEntryP
         <div className="flex justify-between mt-6">
           <button
             onClick={addEntry}
+<<<<<<< HEAD
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+=======
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 
+                     bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg 
+                     hover:bg-gray-100 dark:hover:bg-gray-600/50 focus:outline-none focus:ring-2 
+                     focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
           >
             <Plus className="h-4 w-4" />
             افزودن محصول
@@ -406,7 +524,12 @@ export default function ManualSalesEntry({ onSave, products }: ManualSalesEntryP
           <button
             onClick={handleSave}
             disabled={isLoading || !isValid()}
+<<<<<<< HEAD
             className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+=======
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg shadow-sm 
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
               isLoading || !isValid()
                 ? 'text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 cursor-not-allowed'
                 : 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'

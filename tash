@@ -1,0 +1,6 @@
+M	src/components/common/ProductSelector.tsx
+M	src/components/common/ShamsiDatePicker.tsx
+M	src/components/sales/ManualSalesEntry.tsx
+M	src/components/sales/SalesReportView.tsx
+M	src/services/dataManagementService.ts
+A	src/utils/animations.ts

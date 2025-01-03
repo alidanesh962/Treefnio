@@ -2,6 +2,22 @@ import React, { useState } from 'react';
 import { SaleEntry, SaleBatch } from '../../types/sales';
 import { BarChart, FileText, Download, Filter, X, DollarSign, Package, TrendingUp, PieChart, Check } from 'lucide-react';
 import { ShamsiDatePicker } from '../common';
+<<<<<<< HEAD
+=======
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  fadeIn,
+  slideUp,
+  slideDown,
+  scale,
+  stagger,
+  listItem,
+  cardHover,
+  buttonTap,
+  chartAnimation,
+  slideRight
+} from '../../utils/animations';
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
 import {
   BarChart as RechartsBarChart,
   Bar,
@@ -129,6 +145,7 @@ export default function SalesReportView({ report, salesBatches, onDateRangeChang
   }));
 
   return (
+<<<<<<< HEAD
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-6">
@@ -156,6 +173,58 @@ export default function SalesReportView({ report, salesBatches, onDateRangeChang
 
         {showFilters && (
           <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-md">
+=======
+    <motion.div 
+      className="space-y-6"
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={fadeIn}
+    >
+      <motion.div 
+        className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700"
+        variants={scale}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <motion.h3 
+            className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2"
+            variants={slideRight}
+          >
+            <BarChart className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            گزارش فروش
+          </motion.h3>
+          <div className="flex items-center gap-4">
+            <motion.button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              whileTap="whileTap"
+              variants={buttonTap}
+            >
+              {showFilters ? <X className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+              {showFilters ? 'بستن فیلترها' : 'فیلترها'}
+            </motion.button>
+            <motion.button
+              onClick={() => {/* Implement export */}}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              whileTap="whileTap"
+              variants={buttonTap}
+            >
+              <Download className="h-4 w-4" />
+              خروجی Excel
+            </motion.button>
+          </div>
+        </div>
+
+        <AnimatePresence>
+        {showFilters && (
+            <motion.div 
+              className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-md"
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              variants={slideDown}
+            >
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
             <div className="flex gap-4">
               <ShamsiDatePicker
                 label="از تاریخ"
@@ -168,6 +237,7 @@ export default function SalesReportView({ report, salesBatches, onDateRangeChang
                 onChange={(date) => handleDateChange('end', date)}
               />
             </div>
+<<<<<<< HEAD
           </div>
         )}
 
@@ -289,6 +359,63 @@ export default function SalesReportView({ report, salesBatches, onDateRangeChang
 
         <div className="space-y-8">
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+=======
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+          variants={stagger}
+        >
+          {[
+            {
+              icon: <Package className="h-4 w-4" />,
+              label: "تعداد کل فروش",
+              value: report.overall.totalUnits.toLocaleString()
+            },
+            {
+              icon: <DollarSign className="h-4 w-4" />,
+              label: "درآمد کل",
+              value: `${report.overall.totalRevenue.toLocaleString()} ریال`
+            },
+            {
+              icon: <Package className="h-4 w-4" />,
+              label: "هزینه مواد اولیه",
+              value: `${report.overall.totalCost.toLocaleString()} ریال`
+            },
+            {
+              icon: <TrendingUp className="h-4 w-4" />,
+              label: "سود خالص",
+              value: `${report.overall.netRevenue.toLocaleString()} ریال`
+            }
+          ].map((stat, index) => (
+            <motion.div
+              key={index}
+              className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"
+              variants={listItem}
+              {...cardHover}
+            >
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                {stat.icon}
+                {stat.label}
+            </div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                {stat.value}
+            </div>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        <motion.div 
+          className="space-y-8"
+          variants={stagger}
+        >
+          <motion.div 
+            className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6"
+            variants={chartAnimation}
+          >
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
             <h4 className="text-base font-medium text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
               <BarChart className="h-4 w-4" />
               نمودار فروش بر اساس بخش فروش
@@ -350,6 +477,7 @@ export default function SalesReportView({ report, salesBatches, onDateRangeChang
                 </RechartsBarChart>
               </ResponsiveContainer>
             </div>
+<<<<<<< HEAD
           </div>
         </div>
 
@@ -364,13 +492,59 @@ export default function SalesReportView({ report, salesBatches, onDateRangeChang
                 <div key={dept} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{dept}</span>
+=======
+          </motion.div>
+        </motion.div>
+
+        <motion.div 
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8"
+          variants={stagger}
+        >
+          {[
+            {
+              title: "جزئیات فروش بر اساس بخش فروش",
+              icon: <DollarSign className="h-4 w-4" />,
+              data: Object.entries(report.byDepartment)
+            },
+            {
+              title: "جزئیات فروش بر اساس بخش تولید",
+              icon: <Package className="h-4 w-4" />,
+              data: Object.entries(report.byProductionSegment)
+            }
+          ].map((section, index) => (
+            <motion.div key={index} variants={listItem}>
+            <h4 className="text-base font-medium text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                {section.icon}
+                {section.title}
+            </h4>
+              <motion.div className="space-y-4" variants={stagger}>
+                {section.data.map(([key, stats]) => (
+                  <motion.div
+                    key={key}
+                    className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"
+                    variants={listItem}
+                    {...cardHover}
+                  >
+                  <div className="flex justify-between items-center mb-4">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{key}</span>
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
                     <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {stats.totalRevenue.toLocaleString()} ریال
                     </span>
                   </div>
+<<<<<<< HEAD
                   <div className="space-y-4">
                     {stats.products.map(product => (
                       <div key={product.id} className="border-t border-gray-200 dark:border-gray-600 pt-4">
+=======
+                    <motion.div className="space-y-4" variants={stagger}>
+                    {stats.products.map(product => (
+                        <motion.div
+                          key={product.id}
+                          className="border-t border-gray-200 dark:border-gray-600 pt-4"
+                          variants={listItem}
+                        >
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-sm text-gray-900 dark:text-gray-100">
                             {product.name} ({product.code})
@@ -399,6 +573,7 @@ export default function SalesReportView({ report, salesBatches, onDateRangeChang
                             </span>
                           </div>
                         </div>
+<<<<<<< HEAD
                       </div>
                     ))}
                   </div>
@@ -462,5 +637,18 @@ export default function SalesReportView({ report, salesBatches, onDateRangeChang
         </div>
       </div>
     </div>
+=======
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </motion.div>
+    </motion.div>
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
   );
 } 

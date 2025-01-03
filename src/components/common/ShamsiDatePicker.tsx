@@ -42,11 +42,78 @@ export default function ShamsiDatePicker({
               {...params}
               error={error}
               helperText={helperText}
+<<<<<<< HEAD
               sx={{ minWidth: 200 }}
+=======
+              sx={{
+                minWidth: 200,
+                '& .MuiInputBase-root': {
+                  backgroundColor: 'rgb(31, 41, 55)',
+                  '& fieldset': {
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                  }
+                },
+                '& .MuiInputBase-input': {
+                  color: 'rgb(229, 231, 235)',
+                },
+                '& .MuiIconButton-root': {
+                  color: 'rgb(156, 163, 175)',
+                },
+                '& .MuiInputLabel-root': {
+                  color: 'rgb(156, 163, 175)',
+                  '&.Mui-focused': {
+                    color: 'rgb(209, 213, 219)',
+                  }
+                }
+              }}
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
             />
           ),
         }}
         format="jYYYY/jMM/jDD"
+<<<<<<< HEAD
+=======
+        slotProps={{
+          popper: {
+            sx: {
+              '& .MuiPaper-root': {
+                backgroundColor: 'rgb(31, 41, 55)',
+                color: 'rgb(229, 231, 235)',
+                '& .MuiPickersDay-root': {
+                  color: 'rgb(229, 231, 235)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  },
+                  '&.Mui-selected': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                    },
+                  },
+                },
+                '& .MuiDayCalendar-weekDayLabel': {
+                  color: 'rgb(156, 163, 175)',
+                },
+                '& .MuiPickersCalendarHeader-label': {
+                  color: 'rgb(229, 231, 235)',
+                },
+                '& .MuiIconButton-root': {
+                  color: 'rgb(156, 163, 175)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  }
+                },
+              },
+            },
+          },
+        }}
+>>>>>>> 51896f95d56e0aada20772cb05d7612324bb812f
       />
     </LocalizationProvider>
   );
