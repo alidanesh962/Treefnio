@@ -24,15 +24,19 @@ import {
   Star,
   CircleDollarSign,
   HelpCircle,
-  AlertOctagon
+  AlertOctagon,
+  FileSpreadsheet
 } from 'lucide-react';
 import { db } from '../../database';
 import { ProductDefinition, ExtendedProductDefinition } from '../../types';
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog';
 import ProductDefinitionForm from './ProductDefinitionForm';
+import ProductImport from './ProductImport';
+import BulkEditProductDialog from './BulkEditProductDialog';
 import { exportRecipesToPDF } from '../../utils/newRecipePDFExport';
 import { logUserActivity } from '../../utils/userActivity';
 import { getCurrentUser } from '../../utils/auth';
+import { getCurrentJalaliTimestamp } from '../../database/dateUtils';
 
 interface ProductsListProps {
   onProductSelect: (product: ExtendedProductDefinition) => void;
@@ -93,14 +97,21 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
     count: number;
   }>({ isOpen: false, productIds: [], count: 0 });
 
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<ExtendedProductDefinition | null>(null);
+
   // Save layout preference whenever it changes
   useEffect(() => {
     localStorage.setItem('productsListLayout', layout);
   }, [layout]);
 
   useEffect(() => {
-    loadProducts();
-    loadDepartments();
+    const init = async () => {
+      await loadProducts();
+      loadDepartments();
+    };
+    init();
   }, []);
 
   const loadProducts = async () => {
@@ -119,12 +130,16 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
       // Add products from inventory if they don't exist in definitions
       inventoryProducts.forEach(invProduct => {
         if (!definedProducts.some(defProduct => defProduct.code === invProduct.code)) {
+          // Get the department details
+          const department = db.getDepartment(invProduct.department);
+          const departmentId = department?.id || '';
+          
           allProducts.push({
             id: invProduct.id,
             name: invProduct.name,
             code: invProduct.code,
-            saleDepartment: invProduct.department,
-            productionSegment: invProduct.department,
+            saleDepartment: departmentId,
+            productionSegment: departmentId,
             createdAt: Date.now(),
             updatedAt: Date.now(),
             isActive: true
@@ -556,6 +571,114 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
     }
   };
 
+  const handleImportSuccess = () => {
+    loadProducts();
+    setShowImportDialog(false);
+  };
+
+  const handleBulkEdit = async (changes: Partial<ExtendedProductDefinition>) => {
+    const user = getCurrentUser();
+    if (editingProduct) {
+      console.log('Starting edit with changes:', changes);
+      console.log('Current editing product:', editingProduct);
+
+      // Validate name and code if they are being changed
+      if (changes.name && changes.name.trim() === '') {
+        setError('نام محصول نمی‌تواند خالی باشد');
+        return;
+      }
+
+      if (changes.code && changes.code.trim() === '') {
+        setError('کد محصول نمی‌تواند خالی باشد');
+        return;
+      }
+
+      // Check for duplicate code if code is being changed
+      if (changes.code && changes.code !== editingProduct.code) {
+        const existingProduct = products.find(p => 
+          p.code === changes.code && p.id !== editingProduct.id
+        );
+        if (existingProduct) {
+          setError('این کد محصول قبلاً استفاده شده است');
+          return;
+        }
+      }
+
+      try {
+        // Create updated product with all current values
+        const updatedProduct: ProductDefinition = {
+          id: editingProduct.id,
+          name: changes.name ?? editingProduct.name,
+          code: changes.code ?? editingProduct.code,
+          saleDepartment: changes.saleDepartment ?? editingProduct.saleDepartment ?? '',
+          productionSegment: changes.productionSegment ?? editingProduct.productionSegment ?? '',
+          createdAt: editingProduct.createdAt,
+          updatedAt: getCurrentJalaliTimestamp(),
+          isActive: changes.isActive ?? editingProduct.isActive ?? true
+        };
+
+        console.log('Attempting to update product with:', updatedProduct);
+        
+        // First update the product definition
+        const updateSuccess = db.updateProductDefinition(updatedProduct);
+        console.log('Update result:', updateSuccess);
+        
+        if (!updateSuccess) {
+          throw new Error('Failed to update product definition');
+        }
+
+        // Update local state immediately
+        setProducts(prevProducts => 
+          prevProducts.map(p => 
+            p.id === editingProduct.id 
+              ? { ...p, ...updatedProduct }
+              : p
+          )
+        );
+
+        // Reload products to ensure we have the latest state
+        await loadProducts();
+        
+        // Log the changes
+        if (user) {
+          const changesDescription = Object.entries(changes)
+            .map(([key, value]) => {
+              switch(key) {
+                case 'name':
+                  return `name from "${editingProduct.name}" to "${value}"`;
+                case 'code':
+                  return `code from "${editingProduct.code}" to "${value}"`;
+                case 'isActive':
+                  return `status to "${value ? 'active' : 'inactive'}"`;
+                case 'saleDepartment':
+                  return `sale department to "${getDepartmentName(value as string, 'sale')}"`;
+                case 'productionSegment':
+                  return `production department to "${getDepartmentName(value as string, 'production')}"`;
+                default:
+                  return `${key} to "${value}"`;
+              }
+            })
+            .join(', ');
+
+          logUserActivity(
+            user.username,
+            user.username,
+            'edit',
+            'products',
+            `Updated product "${editingProduct.name}": ${changesDescription}`
+          );
+        }
+        
+        setShowBulkEdit(false);
+        setEditingProduct(null);
+        setError(null);
+      } catch (err) {
+        console.error('Detailed error:', err);
+        setError('خطا در بروزرسانی محصول');
+      }
+    }
+  };
+
   const renderGridView = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-full">
@@ -602,6 +725,17 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
               </div>
               
               <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingProduct(product);
+                    setShowBulkEdit(true);
+                  }}
+                  className="p-1.5 text-gray-500 hover:text-gray-600 transition-colors"
+                  title="ویرایش محصول"
+                >
+                  <Edit2 className="h-5 w-5" />
+                </button>
                 <button
                   onClick={() => onProductSelect(product)}
                   className="p-1.5 text-blue-500 hover:text-blue-600 transition-colors"
@@ -658,7 +792,12 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                       ...product,
                       saleDepartment: e.target.value
                     };
+                    // Update in database
                     db.updateProductDefinition(updatedProduct);
+                    // Update in local state
+                    setProducts(prev => prev.map(p =>
+                      p.id === product.id ? updatedProduct : p
+                    ));
                     const user = getCurrentUser();
                     if (user) {
                       const newDeptName = getDepartmentName(e.target.value, 'sale');
@@ -670,10 +809,6 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                         `Updated sale department of product "${product.name}" to "${newDeptName}"`
                       );
                     }
-                    const newProducts = products.map(p =>
-                      p.id === product.id ? updatedProduct : p
-                    );
-                    setProducts(newProducts);
                   }}
                   className="text-sm font-medium bg-gray-50 dark:bg-gray-700 text-gray-900 
                              dark:text-white border-none focus:ring-0 rounded-lg
@@ -702,7 +837,12 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                       ...product,
                       productionSegment: e.target.value
                     };
+                    // Update in database
                     db.updateProductDefinition(updatedProduct);
+                    // Update in local state
+                    setProducts(prev => prev.map(p =>
+                      p.id === product.id ? updatedProduct : p
+                    ));
                     const user = getCurrentUser();
                     if (user) {
                       const newDeptName = getDepartmentName(e.target.value, 'production');
@@ -714,10 +854,6 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                         `Updated production department of product "${product.name}" to "${newDeptName}"`
                       );
                     }
-                    const newProducts = products.map(p =>
-                      p.id === product.id ? updatedProduct : p
-                    );
-                    setProducts(newProducts);
                   }}
                   className="text-sm font-medium bg-gray-50 dark:bg-gray-700 text-gray-900 
                              dark:text-white border-none focus:ring-0 rounded-lg
@@ -878,7 +1014,12 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                         ...product,
                         saleDepartment: e.target.value
                       };
+                      // Update in database
                       db.updateProductDefinition(updatedProduct);
+                      // Update in local state
+                      setProducts(prev => prev.map(p =>
+                        p.id === product.id ? updatedProduct : p
+                      ));
                       const user = getCurrentUser();
                       if (user) {
                         const newDeptName = getDepartmentName(e.target.value, 'sale');
@@ -890,10 +1031,6 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                           `Updated sale department of product "${product.name}" to "${newDeptName}"`
                         );
                       }
-                      const newProducts = products.map(p =>
-                        p.id === product.id ? updatedProduct : p
-                      );
-                      setProducts(newProducts);
                     }}
                     className="bg-gray-50 dark:bg-gray-700 border-none focus:ring-0 
                                text-gray-900 dark:text-white rounded-lg
@@ -918,7 +1055,12 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                         ...product,
                         productionSegment: e.target.value
                       };
+                      // Update in database
                       db.updateProductDefinition(updatedProduct);
+                      // Update in local state
+                      setProducts(prev => prev.map(p =>
+                        p.id === product.id ? updatedProduct : p
+                      ));
                       const user = getCurrentUser();
                       if (user) {
                         const newDeptName = getDepartmentName(e.target.value, 'production');
@@ -930,10 +1072,6 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                           `Updated production department of product "${product.name}" to "${newDeptName}"`
                         );
                       }
-                      const newProducts = products.map(p =>
-                        p.id === product.id ? updatedProduct : p
-                      );
-                      setProducts(newProducts);
                     }}
                     className="bg-gray-50 dark:bg-gray-700 border-none focus:ring-0 
                                text-gray-900 dark:text-white rounded-lg
@@ -959,6 +1097,17 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingProduct(product);
+                        setShowBulkEdit(true);
+                      }}
+                      className="p-1.5 text-gray-500 hover:text-gray-600 transition-colors"
+                      title="ویرایش محصول"
+                    >
+                      <Edit2 className="h-5 w-5" />
+                    </button>
                     <button
                       onClick={() => onProductSelect(product)}
                       className="p-1.5 text-blue-500 hover:text-blue-600 transition-colors"
@@ -1037,6 +1186,14 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
               حذف {selectedProducts.length} محصول
             </button>
           )}
+          <button
+            onClick={() => setShowImportDialog(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white 
+                   rounded-lg hover:bg-green-600 transition-colors"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            ورود گروهی
+          </button>
           <button
             onClick={() => setShowDefinitionForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white 
@@ -1271,6 +1428,44 @@ export default function ProductsList({ onProductSelect }: ProductsListProps) {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteConfirm({ isOpen: false, productIds: [], count: 0 })}
       />
+
+      {showImportDialog && (
+        <ProductImport
+          onClose={() => setShowImportDialog(false)}
+          onSuccess={handleImportSuccess}
+        />
+      )}
+
+      {showBulkEdit && (
+        <BulkEditProductDialog
+          isOpen={showBulkEdit}
+          onClose={() => {
+            setShowBulkEdit(false);
+            setEditingProduct(null);
+          }}
+          onConfirm={handleBulkEdit}
+          selectedCount={editingProduct ? 1 : selectedProducts.length}
+          departments={db.getDepartmentsByType('sale')}
+          productionSegments={db.getDepartmentsByType('production')}
+          editingProduct={editingProduct}
+        />
+      )}
+
+      {/* Error Message Display */}
+      {error && (
+        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            <span>{error}</span>
+            <button 
+              onClick={() => setError(null)}
+              className="ml-4 text-red-700 hover:text-red-900"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

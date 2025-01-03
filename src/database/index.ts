@@ -14,6 +14,7 @@ import type {
 
 import type { Product } from '../types/product';
 import type { Material } from '../types/material';
+import type { SaleBatch, SaleEntry } from '../types/sales';
 import {
   convertToJalaliTimestamp,
   convertFromJalaliTimestamp,
@@ -46,6 +47,9 @@ const PRODUCT_ACTIVE_STATUSES_KEY = 'product_active_statuses';
 // Constants for new storage keys
 const SALES_DATASETS_KEY = 'sales_datasets';
 const REFERENCE_DATASET_KEY = 'reference_dataset';
+
+// Add this constant for sales history storage
+const SALES_HISTORY_KEY = 'restaurant_sales_history';
 
 interface SalesDataset {
   id: string;
@@ -111,30 +115,31 @@ export class Database {
   }
 
   // Product Definitions Operations
-  getProductDefinitions(): ExtendedProductDefinition[] {
+  getProductDefinitions(): ProductDefinition[] {
     const stored = localStorage.getItem(PRODUCT_DEFINITIONS_KEY);
-    const products: ProductDefinition[] = stored ? JSON.parse(stored) : [];
-    const activeStatuses = this.getProductActiveStatuses();
-    
-    return products.map((product) => ({
+    console.log('Stored products from localStorage:', stored);
+    const products = stored ? JSON.parse(stored) : [];
+    console.log('Parsed products:', products);
+    return products.map((product: ProductDefinition) => ({
       ...product,
-      isActive: activeStatuses[product.id] ?? true
+      isActive: product.isActive ?? true
     }));
   }
 
-  getProductDefinition(id: string): ExtendedProductDefinition | undefined {
+  getProductDefinition(id: string): ProductDefinition | undefined {
     const product = this.getProductDefinitions().find(p => p.id === id);
     if (!product) return undefined;
     
-    const activeStatuses = this.getProductActiveStatuses();
     return {
       ...product,
-      isActive: activeStatuses[product.id] ?? true
+      isActive: product.isActive ?? true
     };
   }
 
   saveProductDefinitions(products: ProductDefinition[]): void {
+    console.log('Saving products to localStorage:', products);
     localStorage.setItem(PRODUCT_DEFINITIONS_KEY, JSON.stringify(products));
+    console.log('Products saved. Current localStorage value:', localStorage.getItem(PRODUCT_DEFINITIONS_KEY));
   }
 
   // Step 4: Update the generateNextProductCode and addProductDefinition methods
@@ -153,7 +158,7 @@ export class Database {
   }
 
   addProductDefinition(
-    product: Omit<ProductDefinition, 'id' | 'createdAt' | 'updatedAt'> & { autoGenerateCode?: boolean }
+    product: Omit<ProductDefinition, 'id' | 'createdAt' | 'updatedAt' | 'isActive'> & { autoGenerateCode?: boolean }
   ): ProductDefinition {
     const products = this.getProductDefinitions();
     const now = getCurrentJalaliTimestamp();
@@ -167,46 +172,59 @@ export class Database {
       id: now.toString(),
       code: productCode,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      isActive: true
     };
 
     products.push(newProduct);
     this.saveProductDefinitions(products);
-    
-    // Save active status
-    const activeStatuses = this.getProductActiveStatuses();
-    activeStatuses[newProduct.id] = true;
-    this.saveProductActiveStatuses(activeStatuses);
-
     return newProduct;
   }
 
-  updateProductDefinition(product: ExtendedProductDefinition): boolean {
-    const products = this.getProductDefinitions();
-    const index = products.findIndex(p => p.id === product.id);
-    if (index !== -1) {
-      const statuses = this.getProductActiveStatuses();
-      statuses[product.id] = product.isActive ?? true;
-      this.saveProductActiveStatuses(statuses);
+  updateProductDefinition(product: ProductDefinition): boolean {
+    try {
+      // Validate required fields
+      if (!product.id || !product.name || !product.code) {
+        console.error('Missing required fields in product update:', product);
+        return false;
+      }
 
-      const baseProduct: ProductDefinition = {
-        id: product.id,
-        name: product.name,
-        code: product.code,
-        saleDepartment: product.saleDepartment,
-        productionSegment: product.productionSegment,
-        createdAt: product.createdAt,
-        updatedAt: getCurrentJalaliTimestamp()
-      };
-
-      const updatedProducts = products.map(p => 
-        p.id === product.id ? baseProduct : p
-      );
+      const products = this.getProductDefinitions();
+      const index = products.findIndex(p => p.id === product.id);
       
-      this.saveProductDefinitions(updatedProducts);
-      return true;
+      if (index !== -1) {
+        // Ensure all required fields are present with defaults
+        const updatedProduct: ProductDefinition = {
+          ...product,
+          saleDepartment: product.saleDepartment || '',
+          productionSegment: product.productionSegment || '',
+          updatedAt: getCurrentJalaliTimestamp(),
+          isActive: product.isActive ?? true
+        };
+
+        // Update the product definition
+        const updatedProducts = products.map(p => 
+          p.id === product.id ? updatedProduct : p
+        );
+        
+        // Save product definition
+        this.saveProductDefinitions(updatedProducts);
+
+        // Also update the active status
+        const statuses = this.getProductActiveStatuses();
+        statuses[product.id] = updatedProduct.isActive;
+        this.saveProductActiveStatuses(statuses);
+
+        console.log('Successfully updated product:', updatedProduct);
+        return true;
+      }
+
+      console.error('Product not found for update:', product.id);
+      return false;
+    } catch (error) {
+      console.error('Error updating product definition:', error);
+      return false;
     }
-    return false;
   }
 
   deleteProductDefinition(id: string): boolean {
@@ -214,71 +232,71 @@ export class Database {
     const filteredProducts = products.filter(p => p.id !== id);
     
     if (filteredProducts.length < products.length) {
-      const statuses = this.getProductActiveStatuses();
-      delete statuses[id];
-      this.saveProductActiveStatuses(statuses);
-      
       this.deleteProductRecipes(id);
-      
-      const baseProducts = filteredProducts.map(p => ({
-        id: p.id,
-        name: p.name,
-        code: p.code,
-        saleDepartment: p.saleDepartment,
-        productionSegment: p.productionSegment,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt
-      }));
-      
-      this.saveProductDefinitions(baseProducts);
+      this.saveProductDefinitions(filteredProducts);
       return true;
     }
     return false;
   }
 
   private getProductActiveStatuses(): { [key: string]: boolean } {
-    const stored = localStorage.getItem(PRODUCT_ACTIVE_STATUSES_KEY);
-    return stored ? JSON.parse(stored) : {};
+    try {
+      const stored = localStorage.getItem(PRODUCT_ACTIVE_STATUSES_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.error('Error getting product active statuses:', error);
+      return {};
+    }
   }
 
   private saveProductActiveStatuses(statuses: { [key: string]: boolean }): void {
-    localStorage.setItem(PRODUCT_ACTIVE_STATUSES_KEY, JSON.stringify(statuses));
+    try {
+      localStorage.setItem(PRODUCT_ACTIVE_STATUSES_KEY, JSON.stringify(statuses));
+    } catch (error) {
+      console.error('Error saving product active statuses:', error);
+    }
   }
 
   isProductActive(id: string): boolean {
-    const statuses = this.getProductActiveStatuses();
-    return statuses[id] ?? true;
+    try {
+      const statuses = this.getProductActiveStatuses();
+      return statuses[id] ?? true;
+    } catch (error) {
+      console.error('Error checking product active status:', error);
+      return true;
+    }
   }
 
   async updateProductStatus(id: string, status: boolean): Promise<void> {
-    const statuses = this.getProductActiveStatuses();
-    statuses[id] = status;
-    this.saveProductActiveStatuses(statuses);
-    return Promise.resolve();
+    try {
+      const statuses = this.getProductActiveStatuses();
+      statuses[id] = status;
+      this.saveProductActiveStatuses(statuses);
+
+      // Also update the product definition
+      const products = this.getProductDefinitions();
+      const product = products.find(p => p.id === id);
+      if (product) {
+        product.isActive = status;
+        this.updateProductDefinition(product);
+      }
+
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error updating product status:', error);
+      return Promise.reject(error);
+    }
   }
 
   bulkDeleteProducts(ids: string[]): void {
     const products = this.getProductDefinitions();
     const filteredProducts = products.filter(p => !ids.includes(p.id));
     
-    const statuses = this.getProductActiveStatuses();
     ids.forEach(id => {
-      delete statuses[id];
       this.deleteProductRecipes(id);
     });
     
-    const baseProducts = filteredProducts.map(p => ({
-      id: p.id,
-      name: p.name,
-      code: p.code,
-      saleDepartment: p.saleDepartment,
-      productionSegment: p.productionSegment,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt
-    }));
-    
-    this.saveProductActiveStatuses(statuses);
-    this.saveProductDefinitions(baseProducts);
+    this.saveProductDefinitions(filteredProducts);
   }
 
   // Materials Operations
@@ -972,6 +990,58 @@ export class Database {
     groups.push(newGroup);
     this.saveMaterialGroups(groups);
     return newGroup;
+  }
+
+  getSalesHistory(): SaleBatch[] {
+    const stored = localStorage.getItem(SALES_HISTORY_KEY);
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  saveSalesHistory(history: SaleBatch[]): void {
+    localStorage.setItem(SALES_HISTORY_KEY, JSON.stringify(history));
+  }
+
+  importSalesData(entries: any[], products: ProductDefinition[]): void {
+    console.log('Importing sales data:', entries);
+    console.log('Available products:', products);
+    
+    const salesHistory = this.getSalesHistory();
+    const newBatch: SaleBatch = {
+      id: Date.now().toString(),
+      entries: entries.map(entry => ({
+        ...entry,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      })),
+      startDate: entries[0].saleDate,
+      endDate: entries[entries.length - 1].saleDate,
+      totalRevenue: entries.reduce((sum, entry) => sum + entry.totalPrice, 0),
+      totalCost: entries.reduce((sum, entry) => sum + (entry.materialCost || 0) * entry.quantity, 0),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    salesHistory.push(newBatch);
+    this.saveSalesHistory(salesHistory);
+  }
+
+  getProductDetails(id: string): ProductDefinition {
+    const product = this.getProductDefinition(id);
+    if (!product) {
+      throw new Error(`Product with id ${id} not found`);
+    }
+    return product;
+  }
+
+  calculateRecipeCost(recipeId: string): number {
+    const recipe = this.getProductRecipe(recipeId);
+    if (!recipe) return 0;
+
+    return recipe.materials.reduce((total: number, material: RecipeMaterial) => {
+      const materialItem = this.getMaterial(material.materialId);
+      if (!materialItem) return total;
+      return total + (materialItem.price * material.amount);
+    }, 0);
   }
 }
 

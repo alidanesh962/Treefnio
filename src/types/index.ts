@@ -105,13 +105,11 @@ export interface ProductDefinition {
   productionSegment: string;
   createdAt: number;
   updatedAt: number;
+  isActive: boolean;
 }
 
-export interface ExtendedProductDefinition extends ProductDefinition { // Added interface
-  department?: string;
-  price?: number;
-  type?: 'product' | 'material';
-  isActive?: boolean; // Add this line
+export interface ExtendedProductDefinition extends ProductDefinition {
+  isActive: boolean;
 }
 
 export interface ProductionBatch {

@@ -1,5 +1,6 @@
 import { Product, Material, Item } from '../types';
 import { db } from '../database';
+import * as XLSX from 'xlsx';
 
 interface ImportResult {
   success: boolean;
@@ -72,6 +73,15 @@ export class SalesImportService {
         updatedProducts: []
       };
     }
+  }
+
+  async exportToExcel(data: any[]): Promise<Blob> {
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sales Data');
+    
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
   async setReferenceDataset(datasetId: string | null): Promise<void> {

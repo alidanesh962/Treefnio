@@ -1,14 +1,76 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import BostonGraphSection from '../../components/reports/BostonGraphSection';
-import { Download, Filter } from 'lucide-react';
+import { Download, Filter, Check } from 'lucide-react';
 import { PersianDatePicker } from '../../components/common/PersianDatePicker';
 import { formatToJalali } from '../../utils/dateUtils';
+import { SalesService } from '../../services/salesService';
+import { SalesReport, SaleBatch, SaleEntry } from '../../types/sales';
+import { ShamsiDate } from '../../utils/shamsiDate';
 
 export default function BostonReport() {
   const [dateRange, setDateRange] = useState<[string, string]>([
     formatToJalali(new Date()),
     formatToJalali(new Date())
   ]);
+  
+  const [report, setReport] = useState<SalesReport>({
+    byDepartment: {},
+    byProductionSegment: {},
+    overall: {
+      totalUnits: 0,
+      totalRevenue: 0,
+      totalCost: 0,
+      netRevenue: 0,
+    },
+    timeRange: {
+      start: ShamsiDate.getCurrentShamsiDate(),
+      end: ShamsiDate.getCurrentShamsiDate(),
+    },
+  });
+  
+  const [salesData, setSalesData] = useState<SaleBatch[]>([]);
+  const [selectedBatches, setSelectedBatches] = useState<string[]>([]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      const data = await SalesService.getSalesHistory();
+      setSalesData(data);
+      const initialReport = await SalesService.getSalesReport(dateRange[0], dateRange[1]);
+      setReport(initialReport);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+    }
+  };
+
+  const handleDateRangeChange = async (startDate: string, endDate: string) => {
+    try {
+      const newReport = await SalesService.getSalesReport(startDate, endDate);
+      setReport(newReport);
+    } catch (error) {
+      console.error('Error loading sales report:', error);
+    }
+  };
+
+  const handleBatchSelect = (batchId: string) => {
+    const newSelection = selectedBatches.includes(batchId)
+      ? selectedBatches.filter(id => id !== batchId)
+      : [...selectedBatches, batchId];
+    setSelectedBatches(newSelection);
+    
+    // Update report based on selected batches
+    if (newSelection.length > 0) {
+      SalesService.getSalesReportForBatches(newSelection)
+        .then(newReport => setReport(newReport))
+        .catch(error => console.error('Error updating report:', error));
+    } else {
+      // If no batches selected, load default report
+      handleDateRangeChange(dateRange[0], dateRange[1]);
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-8">
@@ -80,9 +142,91 @@ export default function BostonReport() {
         </div>
       </div>
 
+      {/* Sales Batches Selection */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+          دسته‌های فروش
+        </h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                  انتخاب
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                  تاریخ ثبت
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                  تعداد اقلام
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                  مجموع تعداد
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                  درآمد کل
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                  هزینه مواد
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                  سود خالص
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {salesData.map((batch: SaleBatch) => (
+                <tr 
+                  key={batch.id} 
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                  onClick={() => handleBatchSelect(batch.id)}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center justify-center">
+                      <div className={`w-5 h-5 border-2 rounded flex items-center justify-center
+                        ${selectedBatches.includes(batch.id)
+                          ? 'border-blue-500 bg-blue-500'
+                          : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      >
+                        {selectedBatches.includes(batch.id) && (
+                          <Check className="h-3 w-3 text-white" />
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    {batch.startDate}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    {batch.entries.length.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    {batch.entries.reduce((sum, entry) => sum + entry.quantity, 0).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    {batch.totalRevenue.toLocaleString()} ریال
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    {batch.totalCost.toLocaleString()} ریال
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    {(batch.totalRevenue - batch.totalCost).toLocaleString()} ریال
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Boston Graph */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-        <BostonGraphSection />
+        <BostonGraphSection 
+          report={report}
+          salesBatches={salesData}
+          onDateRangeChange={handleDateRangeChange}
+        />
       </div>
 
       {/* Product Details Table */}
@@ -112,7 +256,29 @@ export default function BostonReport() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {/* Product rows will be dynamically added here */}
+              {salesData.map((batch: SaleBatch) => (
+                batch.entries.map((entry: SaleEntry) => (
+                  <tr key={`${batch.id}-${entry.productId}`}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      {entry.product?.name || 'Unknown Product'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      {entry.product?.code || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      {((entry.totalPrice / report.overall.totalRevenue) * 100).toFixed(2)}%
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      {/* Growth calculation will be based on previous period */}
+                      {/* For now showing placeholder */}
+                      -
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      {entry.product?.saleDepartment || 'N/A'} / {entry.product?.productionSegment || 'N/A'}
+                    </td>
+                  </tr>
+                ))
+              ))}
             </tbody>
           </table>
         </div>

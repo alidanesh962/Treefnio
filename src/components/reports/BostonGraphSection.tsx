@@ -1,4 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Filter, Download, Check } from 'lucide-react';
+import { ShamsiDatePicker } from '../common';
+import { ShamsiDate } from '../../utils/shamsiDate';
+import { db } from '../../database';
+import { 
+  SaleEntry,
+  SaleBatch,
+  SalesReport 
+} from '../../types/sales';
 import {
   ScatterChart,
   Scatter,
@@ -6,368 +15,434 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   Label,
-  ReferenceLine,
-  Cell
 } from 'recharts';
-import { Database } from '../../database';
-import { formatToJalali, parseJalali } from '../../utils/dateUtils';
-import { PersianDatePicker } from '../common/PersianDatePicker';
 
-interface Product {
-  id: string;
+interface BostonData {
   name: string;
   code: string;
-  marketShare: number;
   marketGrowth: number;
+  marketShare: number;
   revenue: number;
-  category: string;
 }
 
-interface SalesData {
-  date: string;
-  department: string;
-  totalAmount: number;
-  productId: string;
-  quantity: number;
+interface BostonReport {
+  data: BostonData[];
+  timeRange: {
+    start: string;
+    end: string;
+  };
 }
 
-interface Dataset {
-  id: string;
-  name: string;
-  importDate: number;
-  data: SalesData[];
+interface BostonGraphSectionProps {
+  salesBatches: SaleBatch[];
+  report: SalesReport;
+  onDateRangeChange: (startDate: string, endDate: string) => Promise<void>;
 }
 
-interface DatabaseProduct {
-  id: string;
+interface ProductSaleData {
   name: string;
   code: string;
-  description: string;
-  price: number;
-  category: string;
-  isActive: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
-
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: Array<{
-    payload: Product;
+  sales: Array<{
+    date: string;
+    revenue: number;
+    quantity: number;
   }>;
 }
 
-export default function BostonGraphSection() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
-  const [datasets, setDatasets] = useState<Array<{ id: string; name: string; importDate: number }>>([]);
-  const [dateRange, setDateRange] = useState<[string, string]>([
-    formatToJalali(new Date()),
-    formatToJalali(new Date())
-  ]);
-
-  const db = new Database();
-
-  useEffect(() => {
-    const loadDatasets = async () => {
-      const salesDatasets = db.getSalesDatasets();
-      setDatasets(salesDatasets);
-      if (salesDatasets.length > 0) {
-        setSelectedDataset(salesDatasets[0].id);
-      }
-    };
-    loadDatasets();
-  }, []);
+export default function BostonGraphSection({ salesBatches, report, onDateRangeChange }: BostonGraphSectionProps) {
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateRange, setDateRange] = useState({
+    start: report.timeRange.start,
+    end: report.timeRange.end,
+  });
+  const [selectedBatches, setSelectedBatches] = useState<string[]>([]);
+  const [bostonReport, setBostonReport] = useState<BostonReport>({
+    data: [],
+    timeRange: report.timeRange,
+  });
 
   useEffect(() => {
-    if (selectedDataset) {
-      loadBostonData();
-    }
-  }, [selectedDataset]);
+    generateBostonReport();
+  }, [salesBatches, report]);
 
-  const loadBostonData = async () => {
-    setIsLoading(true);
-    try {
-      const allProducts = (await db.getProducts() as unknown) as DatabaseProduct[];
-      const salesDatasets = (db.getSalesDatasets() as unknown) as Dataset[];
-      const selectedSalesData = salesDatasets.find(d => d.id === selectedDataset)?.data || [];
-      
-      // Group sales data by product and calculate metrics
-      const productSalesMap = new Map<string, { current: number; previous: number; revenue: number }>();
-      
-      // Split data into current and previous periods (15 days each)
-      const midPoint = new Date(selectedSalesData[Math.floor(selectedSalesData.length / 2)].date);
-      
-      selectedSalesData.forEach((sale: SalesData) => {
-        const saleDate = new Date(sale.date);
-        const isCurrentPeriod = saleDate >= midPoint;
-        
-        const productData = productSalesMap.get(sale.productId) || { current: 0, previous: 0, revenue: 0 };
-        if (isCurrentPeriod) {
-          productData.current += sale.quantity;
-          productData.revenue += sale.totalAmount;
-        } else {
-          productData.previous += sale.quantity;
-        }
-        productSalesMap.set(sale.productId, productData);
+  const handleBatchSelect = (batchId: string) => {
+    const newSelection = selectedBatches.includes(batchId)
+      ? selectedBatches.filter(id => id !== batchId)
+      : [...selectedBatches, batchId];
+    setSelectedBatches(newSelection);
+    generateBostonReport();
+  };
+
+  const generateBostonReport = () => {
+    // If no batches are selected, show empty data
+    if (selectedBatches.length === 0) {
+      setBostonReport({
+        data: [],
+        timeRange: report.timeRange,
       });
+      return;
+    }
 
-      // Calculate market metrics for each product
-      const totalRevenue = Array.from(productSalesMap.values()).reduce((sum, data) => sum + data.revenue, 0);
-      
-      const productMetrics = allProducts.map((product: DatabaseProduct) => {
-        const salesData = productSalesMap.get(product.id) || { current: 0, previous: 0, revenue: 0 };
-        
-        // Calculate market share based on revenue
-        const marketShare = totalRevenue ? (salesData.revenue / totalRevenue) * 100 : 0;
-        
-        // Calculate growth rate
-        const growthRate = salesData.previous ? 
-          ((salesData.current - salesData.previous) / salesData.previous) * 100 : 0;
+    // Only use selected batches
+    const relevantBatches = salesBatches.filter(batch => selectedBatches.includes(batch.id));
 
-        return {
-          id: product.id,
-          name: product.name,
-          code: product.code,
-          marketShare,
-          marketGrowth: growthRate,
-          revenue: salesData.revenue,
-          category: getProductCategory(marketShare, growthRate)
+    const salesByProduct = new Map<string, ProductSaleData>();
+
+    // Process selected sales batches
+    relevantBatches.forEach(batch => {
+      batch.entries.forEach((entry: SaleEntry) => {
+        const existingProduct = salesByProduct.get(entry.productId) || {
+          name: entry.product?.name || 'Unknown Product',
+          code: entry.product?.code || 'Unknown Code',
+          sales: [],
         };
+
+        existingProduct.sales.push({
+          date: batch.startDate,
+          revenue: entry.totalPrice,
+          quantity: entry.quantity,
+        });
+
+        salesByProduct.set(entry.productId, existingProduct);
       });
+    });
 
-      setProducts(productMetrics);
-    } catch (error) {
-      console.error('Error loading Boston graph data:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    // Calculate Boston matrix data for each product
+    const bostonData: BostonData[] = Array.from(salesByProduct.entries()).map(([_, product]) => {
+      const sortedSales = [...product.sales].sort((a, b) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+
+      const firstSale = sortedSales[0];
+      const lastSale = sortedSales[sortedSales.length - 1];
+      const marketGrowth = firstSale && lastSale
+        ? ((lastSale.revenue - firstSale.revenue) / firstSale.revenue) * 100
+        : 0;
+
+      const productRevenue = sortedSales.reduce((sum, sale) => sum + sale.revenue, 0);
+      const totalMarketRevenue = report.overall.totalRevenue;
+      const marketShare = totalMarketRevenue > 0
+        ? (productRevenue / totalMarketRevenue) * 100
+        : 0;
+
+      return {
+        name: product.name,
+        code: product.code,
+        marketGrowth,
+        marketShare,
+        revenue: productRevenue,
+      };
+    });
+
+    setBostonReport({
+      data: bostonData,
+      timeRange: report.timeRange,
+    });
   };
 
-  const getProductCategory = (marketShare: number, marketGrowth: number): string => {
-    if (marketShare >= 25 && marketGrowth >= 10) return 'ستاره';
-    if (marketShare >= 25 && marketGrowth < 10) return 'گاو شیرده';
-    if (marketShare < 25 && marketGrowth >= 10) return 'علامت سؤال';
-    return 'سگ';
+  const handleDateChange = async (field: 'start' | 'end', value: string) => {
+    const newRange = { ...dateRange, [field]: value };
+    setDateRange(newRange);
+    await onDateRangeChange(newRange.start, newRange.end);
   };
 
-  const getQuadrantColor = (marketShare: number, marketGrowth: number) => {
-    if (marketShare >= 25 && marketGrowth >= 10) return '#ff7300'; // Stars
-    if (marketShare >= 25 && marketGrowth < 10) return '#82ca9d'; // Cash Cows
-    if (marketShare < 25 && marketGrowth >= 10) return '#8884d8'; // Question Marks
-    return '#d88884'; // Dogs
+  const exportToExcel = () => {
+    // TODO: Implement Excel export
+    console.log('Exporting to Excel...');
   };
 
-  const getCategoryColor = (category: string): string => {
-    switch (category) {
-      case 'ستاره':
-        return 'text-orange-600 dark:text-orange-400';
-      case 'گاو شیرده':
-        return 'text-green-600 dark:text-green-400';
-      case 'علامت سؤال':
-        return 'text-purple-600 dark:text-purple-400';
-      case 'سگ':
-        return 'text-red-600 dark:text-red-400';
-      default:
-        return 'text-gray-600 dark:text-gray-400';
-    }
-  };
-
-  const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload }) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white p-4 rounded shadow-lg border border-gray-200">
-          <p className="font-bold">{data.name}</p>
-          <p>کد: {data.code}</p>
-          <p>سهم بازار: {data.marketShare.toFixed(1)}%</p>
-          <p>رشد: {data.marketGrowth.toFixed(1)}%</p>
-          <p>درآمد: {data.revenue.toLocaleString()} تومان</p>
-          <p>دسته‌بندی: {data.category}</p>
+        <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900 dark:text-gray-100">{data.name}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">کد: {data.code}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            رشد بازار: {data.marketGrowth.toFixed(2)}%
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            سهم بازار: {data.marketShare.toFixed(2)}%
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            درآمد: {data.revenue.toLocaleString()} ریال
+          </p>
         </div>
       );
     }
     return null;
   };
 
-  const formatDate = (timestamp: number): string => {
-    return formatToJalali(timestamp);
-  };
-
-  const quadrantColors = {
-    star: 'rgba(255, 115, 0, 0.1)', // Stars - Light Orange
-    cashCow: 'rgba(130, 202, 157, 0.1)', // Cash Cows - Light Green
-    questionMark: 'rgba(136, 132, 216, 0.1)', // Question Marks - Light Purple
-    dog: 'rgba(216, 136, 132, 0.1)', // Dogs - Light Red
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
             نمودار بوستون
-          </h2>
-          <select
-            className="px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            value={selectedDataset || ''}
-            onChange={(e) => setSelectedDataset(e.target.value)}
-          >
-            {datasets.map(dataset => (
-              <option key={dataset.id} value={dataset.id}>
-                {dataset.name} - {formatDate(dataset.importDate)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex gap-4 items-center">
-          <div className="flex-1">
-            <PersianDatePicker
-              value={dateRange[0]}
-              onChange={(value) => setDateRange([value, dateRange[1]])}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="از تاریخ"
-            />
-          </div>
-          <span className="text-gray-500 dark:text-gray-400">تا</span>
-          <div className="flex-1">
-            <PersianDatePicker
-              value={dateRange[1]}
-              onChange={(value) => setDateRange([dateRange[0], value])}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="تا تاریخ"
-            />
+          </h3>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Filter className="h-4 w-4" />
+              فیلترها
+            </button>
+            <button
+              onClick={exportToExcel}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Download className="h-4 w-4" />
+              خروجی اکسل
+            </button>
           </div>
         </div>
-      </div>
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-        </div>
-      ) : (
-        <>
-          <div className="h-96 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart
-                margin={{
-                  top: 20,
-                  right: 20,
-                  bottom: 20,
-                  left: 20,
-                }}
-              >
-                <CartesianGrid />
-                <XAxis
-                  type="number"
-                  dataKey="marketShare"
-                  name="سهم بازار"
-                  unit="%"
-                  domain={[0, 100]}
-                >
-                  <Label value="سهم بازار (%)" offset={0} position="bottom" />
-                </XAxis>
-                <YAxis
-                  type="number"
-                  dataKey="marketGrowth"
-                  name="رشد"
-                  unit="%"
-                  domain={[-20, 100]}
-                >
-                  <Label value="رشد (%)" angle={-90} position="left" />
-                </YAxis>
-                <Tooltip content={<CustomTooltip />} />
-                
-                {/* Colored Quadrant Backgrounds */}
-                <rect x="0" y="-20" width="25" height="30" fill={quadrantColors.dog} />
-                <rect x="25" y="-20" width="75" height="30" fill={quadrantColors.cashCow} />
-                <rect x="0" y="10" width="25" height="90" fill={quadrantColors.questionMark} />
-                <rect x="25" y="10" width="75" height="90" fill={quadrantColors.star} />
-                
-                <ReferenceLine x={25} stroke="#666" strokeDasharray="3 3" />
-                <ReferenceLine y={10} stroke="#666" strokeDasharray="3 3" />
-                
-                {/* Quadrant Labels with enhanced styling */}
-                <text x="75%" y="75%" textAnchor="middle" fill="#82ca9d" fontWeight="bold">گاو شیرده</text>
-                <text x="75%" y="25%" textAnchor="middle" fill="#ff7300" fontWeight="bold">ستاره</text>
-                <text x="25%" y="75%" textAnchor="middle" fill="#d88884" fontWeight="bold">سگ</text>
-                <text x="25%" y="25%" textAnchor="middle" fill="#8884d8" fontWeight="bold">علامت سؤال</text>
-
-                <Scatter
-                  data={products}
-                  fill="#8884d8"
-                >
-                  {products.map((product, index) => (
-                    <Cell
-                      key={index}
-                      fill={getQuadrantColor(product.marketShare, product.marketGrowth)}
-                    />
-                  ))}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Product Details Table */}
-          <div className="overflow-x-auto mt-8">
+        {/* Sales Batches Selection */}
+        <div className="mb-6">
+          <h4 className="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">
+            انتخاب دسته‌های فروش
+          </h4>
+          <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-900">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    نام محصول
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    انتخاب
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    کد
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    تاریخ ثبت
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    سهم بازار
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    تعداد اقلام
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    رشد
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    مجموع تعداد
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    درآمد
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    دسته‌بندی
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    درآمد کل
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {products.map((product) => (
-                  <tr key={product.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {product.name}
+                {salesBatches.map((batch: SaleBatch) => (
+                  <tr 
+                    key={batch.id} 
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                    onClick={() => handleBatchSelect(batch.id)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center justify-center">
+                        <div className={`w-5 h-5 border-2 rounded flex items-center justify-center
+                          ${selectedBatches.includes(batch.id)
+                            ? 'border-blue-500 bg-blue-500'
+                            : 'border-gray-300 dark:border-gray-600'
+                          }`}
+                        >
+                          {selectedBatches.includes(batch.id) && (
+                            <Check className="h-3 w-3 text-white" />
+                          )}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {product.code}
+                      {batch.startDate}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {product.marketShare.toFixed(1)}%
+                      {batch.entries.length.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {product.marketGrowth.toFixed(1)}%
+                      {batch.entries.reduce((sum, entry) => sum + entry.quantity, 0).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {product.revenue.toLocaleString()} تومان
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${getCategoryColor(product.category)}`}>
-                      {product.category}
+                      {batch.totalRevenue.toLocaleString()} ریال
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </>
-      )}
+        </div>
+
+        {showFilters && (
+          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-md">
+            <div className="flex gap-4">
+              <ShamsiDatePicker
+                label="از تاریخ"
+                value={dateRange.start}
+                onChange={(date) => handleDateChange('start', date)}
+              />
+              <ShamsiDatePicker
+                label="تا تاریخ"
+                value={dateRange.end}
+                onChange={(date) => handleDateChange('end', date)}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="h-[600px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <ScatterChart
+              margin={{
+                top: 20,
+                right: 20,
+                bottom: 50,
+                left: 50,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                type="number"
+                dataKey="marketShare"
+                name="سهم بازار"
+                unit="%"
+                domain={[0, 100]}
+              >
+                <Label
+                  value="سهم بازار"
+                  position="bottom"
+                  offset={20}
+                  className="text-gray-600 dark:text-gray-400"
+                />
+              </XAxis>
+              <YAxis
+                type="number"
+                dataKey="marketGrowth"
+                name="رشد بازار"
+                unit="%"
+                domain={[-100, 100]}
+              >
+                <Label
+                  value="رشد بازار"
+                  angle={-90}
+                  position="left"
+                  offset={20}
+                  className="text-gray-600 dark:text-gray-400"
+                />
+              </YAxis>
+              <Tooltip content={<CustomTooltip />} />
+              <Scatter
+                name="محصولات"
+                data={bostonReport.data}
+                fill="#3b82f6"
+              />
+            </ScatterChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="mt-8">
+          <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+            جزئیات محصولات در تحلیل بوستون
+          </h4>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    نام محصول
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    کد محصول
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    سهم بازار
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    رشد بازار
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    درآمد کل
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                    دسته‌بندی
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {bostonReport.data.map((product) => {
+                  let category = '';
+                  if (product.marketShare >= 50) {
+                    category = product.marketGrowth >= 0 ? 'ستاره' : 'گاو شیرده';
+                  } else {
+                    category = product.marketGrowth >= 0 ? 'علامت سؤال' : 'سگ';
+                  }
+
+                  return (
+                    <tr key={product.code} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {product.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {product.code}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {product.marketShare.toFixed(2)}%
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {product.marketGrowth.toFixed(2)}%
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {product.revenue.toLocaleString()} ریال
+                      </td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium
+                        ${category === 'ستاره' ? 'text-yellow-500 dark:text-yellow-400' : ''}
+                        ${category === 'گاو شیرده' ? 'text-green-500 dark:text-green-400' : ''}
+                        ${category === 'علامت سؤال' ? 'text-purple-500 dark:text-purple-400' : ''}
+                        ${category === 'سگ' ? 'text-red-500 dark:text-red-400' : ''}
+                      `}>
+                        {category}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+            راهنمای نمودار
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                ستاره‌ها (ربع اول)
+              </h5>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                رشد بازار بالا و سهم بازار بالا - نیازمند سرمایه‌گذاری برای حفظ موقعیت
+              </p>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                علامت سؤال‌ها (ربع دوم)
+              </h5>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                رشد بازار بالا و سهم بازار پایین - نیازمند تصمیم‌گیری برای سرمایه‌گذاری یا خروج
+              </p>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                گاوهای شیرده (ربع سوم)
+              </h5>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                رشد بازار پایین و سهم بازار بالا - تولیدکننده نقدینگی برای سایر محصولات
+              </p>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                سگ‌ها (ربع چهارم)
+              </h5>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                رشد بازار پایین و سهم بازار پایین - نیازمند بررسی برای خروج از سبد محصولات
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,32 +1,70 @@
 // src/pages/ReportingPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  LogOut, Menu, X, FileText, ChevronLeft, 
-  BarChart2, Package, DollarSign, PieChart
-} from 'lucide-react';
+import { Menu, X, FileText, ChevronLeft, BarChart2, Package, DollarSign, PieChart } from 'lucide-react';
 import DarkModeToggle from '../components/layout/DarkModeToggle';
 import BackButton from '../components/layout/BackButton';
 import LogoutConfirmDialog from '../components/common/LogoutConfirmDialog';
-import SalesReportSection from '../components/reports/SalesReportSection';
 import MaterialsReportSection from '../components/reports/MaterialsReportSection';
-import BostonReport from './reports/BostonReport';
+import BostonGraphSection from '../components/reports/BostonGraphSection';
+import SalesReportView from '../components/sales/SalesReportView';
 import { getCurrentUser, clearCurrentUser } from '../utils/auth';
 import { CurrentUser } from '../types';
+import { SalesService } from '../services/salesService';
+import { ShamsiDate } from '../utils/shamsiDate';
+import { SaleBatch } from '../types/sales';
 
 export default function ReportingPage() {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [activeMenu, setActiveMenu] = useState('sales-report');
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [report, setReport] = useState({
+    byDepartment: {},
+    byProductionSegment: {},
+    overall: {
+      totalUnits: 0,
+      totalRevenue: 0,
+      totalCost: 0,
+      netRevenue: 0,
+    },
+    timeRange: {
+      start: ShamsiDate.getCurrentShamsiDate(),
+      end: ShamsiDate.getCurrentShamsiDate(),
+    },
+  });
+  const [salesData, setSalesData] = useState<SaleBatch[]>([]);
+  const [selectedBatches, setSelectedBatches] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!currentUser) {
+    const user = getCurrentUser();
+    if (!user) {
       navigate('/login');
       return;
     }
-  }, [currentUser, navigate]);
+    setCurrentUser(user);
+    loadSalesData();
+  }, [navigate]);
+
+  const loadSalesData = async () => {
+    try {
+      const data = await SalesService.getSalesHistory();
+      setSalesData(data);
+    } catch (error) {
+      console.error('Error loading sales data:', error);
+    }
+  };
+
+  const handleBatchSelect = async (batchIds: string[]) => {
+    setSelectedBatches(batchIds);
+    try {
+      const newReport = await SalesService.getSalesReportForBatches(batchIds);
+      setReport(newReport);
+    } catch (error) {
+      console.error('Error loading sales report for batches:', error);
+    }
+  };
 
   const handleLogoutClick = () => {
     setShowLogoutDialog(true);
@@ -44,6 +82,16 @@ export default function ReportingPage() {
 
   const toggleSidebar = () => {
     setSidebarOpen(!isSidebarOpen);
+  };
+
+  const handleDateRangeChange = async (startDate: string, endDate: string) => {
+    try {
+      const newReport = await SalesService.getSalesReport(startDate, endDate);
+      setReport(newReport);
+    } catch (error) {
+      console.error('Error loading sales report:', error);
+      // TODO: Show error notification
+    }
   };
 
   if (!currentUser) {
@@ -102,17 +150,6 @@ export default function ReportingPage() {
             <PieChart className="h-5 w-5" />
             ماتریس بوستون
           </button>
-
-          <button
-            onClick={() => setActiveMenu('combined-report')}
-            className={`flex items-center w-full px-4 py-2 text-right gap-2
-                      ${activeMenu === 'combined-report' 
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-          >
-            <BarChart2 className="h-5 w-5" />
-            گزارش جامع
-          </button>
         </nav>
       </div>
 
@@ -138,7 +175,6 @@ export default function ReportingPage() {
                   className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg
                            bg-red-500 hover:bg-red-600 text-white transition-colors"
                 >
-                  <LogOut className="h-4 w-4" />
                   خروج
                 </button>
               </div>
@@ -153,17 +189,23 @@ export default function ReportingPage() {
               {activeMenu === 'sales-report' && 'گزارش فروش'}
               {activeMenu === 'materials-report' && 'گزارش مواد اولیه'}
               {activeMenu === 'boston-report' && 'ماتریس بوستون'}
-              {activeMenu === 'combined-report' && 'گزارش جامع'}
             </h1>
             
-            {activeMenu === 'sales-report' && <SalesReportSection />}
+            {activeMenu === 'sales-report' && (
+              <SalesReportView
+                report={report}
+                salesBatches={salesData}
+                onDateRangeChange={handleDateRangeChange}
+                onBatchSelect={handleBatchSelect}
+              />
+            )}
             {activeMenu === 'materials-report' && <MaterialsReportSection />}
-            {activeMenu === 'boston-report' && <BostonReport />}
-            {activeMenu === 'combined-report' && (
-              <div className="space-y-8">
-                <SalesReportSection />
-                <MaterialsReportSection />
-              </div>
+            {activeMenu === 'boston-report' && (
+              <BostonGraphSection 
+                report={report}
+                salesBatches={salesData}
+                onDateRangeChange={handleDateRangeChange}
+              />
             )}
           </div>
         </main>
