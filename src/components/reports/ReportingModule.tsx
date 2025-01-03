@@ -1,21 +1,57 @@
-import React, { useState } from 'react';
-import BostonGraphSection from './BostonGraphSection';
+import React, { useState, useEffect } from 'react';
+import SalesReportView from './SalesReportView';
+import { SalesService } from '../../services/salesService';
+import { SalesReport, SaleBatch } from '../../types/sales';
+import { ShamsiDate } from '../../utils/shamsiDate';
 
 export default function ReportingModule() {
-  const [activeTab, setActiveTab] = useState('boston');
+  const [report, setReport] = useState<SalesReport>({
+    byDepartment: {},
+    byProductionSegment: {},
+    overall: { totalUnits: 0, totalRevenue: 0, totalCost: 0, netRevenue: 0 },
+    timeRange: { start: ShamsiDate.getCurrentShamsiDate(), end: ShamsiDate.getCurrentShamsiDate() },
+  });
+  const [salesData, setSalesData] = useState<SaleBatch[]>([]);
+
+  useEffect(() => {
+    loadSalesData();
+  }, []);
+
+  const loadSalesData = async () => {
+    try {
+      const data = await SalesService.getSalesHistory();
+      setSalesData(data);
+    } catch (error) {
+      console.error('Error loading sales data:', error);
+    }
+  };
+
+  const handleDateRangeChange = async (startDate: string, endDate: string) => {
+    try {
+      const newReport = await SalesService.getSalesReport(startDate, endDate);
+      setReport(newReport);
+    } catch (error) {
+      console.error('Error loading sales report:', error);
+    }
+  };
+
+  const handleBatchSelect = async (selectedBatches: string[]) => {
+    try {
+      const newReport = await SalesService.getSalesReportForBatches(selectedBatches);
+      setReport(newReport);
+    } catch (error) {
+      console.error('Error loading sales report for batches:', error);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-700">
-        <button
-          className={`px-4 py-2 ${activeTab === 'boston' ? 'border-b-2 border-blue-500' : ''}`}
-          onClick={() => setActiveTab('boston')}
-        >
-          تحلیل بوستون
-        </button>
-      </div>
-
-      {activeTab === 'boston' && <BostonGraphSection />}
+    <div className="container mx-auto px-4 py-8">
+      <SalesReportView 
+        report={report}
+        salesBatches={salesData}
+        onDateRangeChange={handleDateRangeChange}
+        onBatchSelect={handleBatchSelect}
+      />
     </div>
   );
 } 

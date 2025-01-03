@@ -65,8 +65,41 @@ export default function EditingProducts() {
   }, [products, filters, sort]);
 
   const loadAllProducts = () => {
-    const productDefinitions = db.getProductDefinitions();
-    setProducts(productDefinitions);
+    try {
+      const definedProducts = db.getProductDefinitions();
+      const inventoryProducts = db.getProducts();
+      const saleDepartments = db.getDepartmentsByType('sale');
+      const productionDepartments = db.getDepartmentsByType('production');
+      
+      const allProducts = [...definedProducts].map(product => ({
+        ...product,
+        isActive: db.isProductActive(product.id)
+      }));
+      
+      // Add products from inventory if they don't exist in definitions
+      inventoryProducts.forEach(invProduct => {
+        if (!definedProducts.some(defProduct => defProduct.code === invProduct.code)) {
+          // Find matching departments
+          const saleDepartment = saleDepartments.find(d => d.id === invProduct.department);
+          const productionDepartment = productionDepartments.find(d => d.id === invProduct.department);
+          
+          allProducts.push({
+            id: invProduct.id,
+            name: invProduct.name,
+            code: invProduct.code,
+            saleDepartment: saleDepartment?.id || '',
+            productionSegment: productionDepartment?.id || '',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            isActive: true
+          });
+        }
+      });
+
+      setProducts(allProducts);
+    } catch (err) {
+      console.error('Error loading products:', err);
+    }
   };
 
   const normalizeString = (str: string | number): string => {
@@ -76,6 +109,18 @@ export default function EditingProducts() {
   const isNumeric = (str: string): boolean => {
     if (typeof str !== 'string') return false;
     return !isNaN(parseFloat(str)) && isFinite(Number(str));
+  };
+
+  const getDepartmentName = (id: string, type: 'sale' | 'production'): string => {
+    if (!id) return 'نامشخص';
+    try {
+      const departments = db.getDepartmentsByType(type);
+      const department = departments.find(d => d.id === id);
+      return department?.name || 'نامشخص';
+    } catch (err) {
+      console.error(`Error getting ${type} department name:`, err);
+      return 'خطا';
+    }
   };
 
   // Fixed Selection Handlers
@@ -465,10 +510,10 @@ export default function EditingProducts() {
                   {product.code}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {product.saleDepartment}
+                  {getDepartmentName(product.saleDepartment, 'sale')}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {product.productionSegment}
+                  {getDepartmentName(product.productionSegment, 'production')}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   <span className={`px-2 py-1 rounded-full text-xs ${

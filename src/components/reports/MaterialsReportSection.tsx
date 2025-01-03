@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Download } from 'lucide-react';
+import { Filter, Download, Package, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { ShamsiDatePicker } from '../common';
+import { ShamsiDate } from '../../utils/shamsiDate';
+import { db } from '../../database';
+import { InventoryTransaction, Item } from '../../types';
 import {
   BarChart,
   Bar,
@@ -7,260 +11,270 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell
 } from 'recharts';
-import { ReportingService } from '../../services/reportingService';
-import { db } from '../../database';
-import { PersianDatePicker } from '../common/PersianDatePicker';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+interface MaterialReport {
+  byCategory: {
+    [category: string]: {
+      totalQuantity: number;
+      totalCost: number;
+      materials: Array<{
+        id: string;
+        name: string;
+        code: string;
+        quantity: number;
+        cost: number;
+      }>;
+    };
+  };
+  overall: {
+    totalQuantity: number;
+    totalCost: number;
+  };
+  timeRange: {
+    start: string;
+    end: string;
+  };
+}
 
 export default function MaterialsReportSection() {
-  const [dateRange, setDateRange] = useState<[string, string]>(['', '']);
-  const [materialsData, setMaterialsData] = useState<any[]>([]);
-  const [materialDistribution, setMaterialDistribution] = useState<any[]>([]);
-  const [totalUsage, setTotalUsage] = useState(0);
-  const [totalCost, setTotalCost] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [datasets, setDatasets] = useState<{ id: string; name: string }[]>([]);
-  const [selectedDataset, setSelectedDataset] = useState<string>('reference');
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateRange, setDateRange] = useState({
+    start: ShamsiDate.getCurrentShamsiDate(),
+    end: ShamsiDate.getCurrentShamsiDate(),
+  });
+  const [report, setReport] = useState<MaterialReport>({
+    byCategory: {},
+    overall: {
+      totalQuantity: 0,
+      totalCost: 0,
+    },
+    timeRange: {
+      start: ShamsiDate.getCurrentShamsiDate(),
+      end: ShamsiDate.getCurrentShamsiDate(),
+    },
+  });
 
   useEffect(() => {
-    // Load available datasets
-    const loadDatasets = () => {
-      const allDatasets = db.getSalesDatasets();
-      setDatasets([
-        { id: 'reference', name: 'داده‌های مرجع' },
-        ...allDatasets.map(ds => ({ id: ds.id, name: ds.name }))
-      ]);
-    };
-    loadDatasets();
+    loadInitialReport();
   }, []);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!dateRange[0] || !dateRange[1]) return;
+  const loadInitialReport = async () => {
+    const currentDate = ShamsiDate.getCurrentShamsiDate();
+    const startDate = ShamsiDate.subtractDays(currentDate, 30);
+    await loadReport(startDate, currentDate);
+  };
 
-      setIsLoading(true);
-      try {
-        const reportingService = ReportingService.getInstance();
-        const data = await reportingService.getMaterialUsageData(dateRange[0], dateRange[1], selectedDataset);
+  const loadReport = async (startDate: string, endDate: string) => {
+    // Get all materials and transactions
+    const materials = await db.getMaterials();
+    const transactions = await db.getMaterialTransactions(startDate, endDate) as InventoryTransaction[];
 
-        setMaterialsData(data.materialsData);
-        setMaterialDistribution(data.materialDistribution);
-        setTotalUsage(data.totalUsage);
-        setTotalCost(data.totalCost);
-      } catch (error) {
-        console.error('Error loading materials data:', error);
-      } finally {
-        setIsLoading(false);
-      }
+    const report: MaterialReport = {
+      byCategory: {},
+      overall: {
+        totalQuantity: 0,
+        totalCost: 0,
+      },
+      timeRange: {
+        start: startDate,
+        end: endDate,
+      },
     };
 
-    loadData();
-  }, [dateRange, selectedDataset]);
+    // Group transactions by material category
+    transactions.forEach((transaction) => {
+      const material = materials.find((m) => m.id === transaction.materialId);
+      if (!material) return;
 
-  const handleDownload = () => {
-    // TODO: Implement report download
-    console.log('Downloading report...');
+      const category = material.department || 'بدون دسته‌بندی';
+      if (!report.byCategory[category]) {
+        report.byCategory[category] = {
+          totalQuantity: 0,
+          totalCost: 0,
+          materials: [],
+        };
+      }
+
+      const materialInCategory = report.byCategory[category].materials.find(
+        (m) => m.id === material.id
+      );
+
+      if (materialInCategory) {
+        materialInCategory.quantity += transaction.quantity;
+        materialInCategory.cost += transaction.totalPrice;
+      } else {
+        report.byCategory[category].materials.push({
+          id: material.id,
+          name: material.name,
+          code: material.code,
+          quantity: transaction.quantity,
+          cost: transaction.totalPrice,
+        });
+      }
+
+      report.byCategory[category].totalQuantity += transaction.quantity;
+      report.byCategory[category].totalCost += transaction.totalPrice;
+      report.overall.totalQuantity += transaction.quantity;
+      report.overall.totalCost += transaction.totalPrice;
+    });
+
+    setReport(report);
   };
+
+  const handleDateChange = async (field: 'start' | 'end', value: string) => {
+    const newRange = { ...dateRange, [field]: value };
+    setDateRange(newRange);
+    await loadReport(newRange.start, newRange.end);
+  };
+
+  const exportToExcel = () => {
+    // TODO: Implement Excel export
+    console.log('Exporting to Excel...');
+  };
+
+  const categoryData = Object.entries(report.byCategory).map(([name, data]) => ({
+    name,
+    مصرف: data.totalQuantity,
+    هزینه: data.totalCost,
+  }));
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Package className="h-5 w-5 text-blue-500 mr-2" />
-              <span className="text-gray-600 dark:text-gray-400">مصرف کل</span>
-            </div>
-            <span className="text-xl font-bold text-gray-800 dark:text-white">
-              {totalUsage.toLocaleString()} واحد
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Package className="h-5 w-5 text-green-500 mr-2" />
-              <span className="text-gray-600 dark:text-gray-400">هزینه کل</span>
-            </div>
-            <span className="text-xl font-bold text-gray-800 dark:text-white">
-              {totalCost.toLocaleString()} ریال
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-            فیلترها
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            گزارش مواد اولیه
           </h3>
-          <button 
-            onClick={handleDownload}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg"
-          >
-            <Download className="h-4 w-4" />
-            دانلود گزارش
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="block text-sm text-gray-600 dark:text-gray-400">بازه زمانی</label>
-            <div className="flex gap-2">
-              <PersianDatePicker
-                value={dateRange[0]}
-                onChange={(date) => setDateRange([date, dateRange[1]])}
-                className="flex-1"
-                placeholder="از تاریخ"
-              />
-              <span className="text-gray-500 dark:text-gray-400 self-center">تا</span>
-              <PersianDatePicker
-                value={dateRange[1]}
-                onChange={(date) => setDateRange([dateRange[0], date])}
-                className="flex-1"
-                placeholder="تا تاریخ"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm text-gray-600 dark:text-gray-400">مجموعه داده</label>
-            <select
-              value={selectedDataset}
-              onChange={(e) => setSelectedDataset(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                       bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              {datasets.map(dataset => (
-                <option key={dataset.id} value={dataset.id}>
-                  {dataset.name}
-                </option>
-              ))}
-            </select>
+              <Filter className="h-4 w-4" />
+              فیلترها
+            </button>
+            <button
+              onClick={exportToExcel}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Download className="h-4 w-4" />
+              خروجی اکسل
+            </button>
           </div>
         </div>
-      </div>
 
-      {isLoading ? (
-        <div className="text-center py-12">
-          <p className="text-gray-600 dark:text-gray-400">در حال بارگذاری...</p>
-        </div>
-      ) : materialsData.length > 0 ? (
-        <>
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Material Usage Trend */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-              <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-6">
-                روند مصرف مواد
-              </h3>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={materialsData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="usage" name="میزان مصرف" stroke="#0088FE" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+        {showFilters && (
+          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-md">
+            <div className="flex gap-4">
+              <ShamsiDatePicker
+                label="از تاریخ"
+                value={dateRange.start}
+                onChange={(date) => handleDateChange('start', date)}
+              />
+              <ShamsiDatePicker
+                label="تا تاریخ"
+                value={dateRange.end}
+                onChange={(date) => handleDateChange('end', date)}
+              />
             </div>
+          </div>
+        )}
 
-            {/* Material Usage Distribution */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-              <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-6">
-                توزیع مصرف مواد
-              </h3>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={materialDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name} (${value.toFixed(0)})`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {materialDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+              <Package className="h-4 w-4" />
+              مصرف کل
+            </div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+              {report.overall.totalQuantity.toLocaleString()}
+            </div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+              <DollarSign className="h-4 w-4" />
+              هزینه کل
+            </div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+              {report.overall.totalCost.toLocaleString()} ریال
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          <div>
+            <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+              مصرف بر اساس دسته‌بندی
+            </h4>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={categoryData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="مصرف" fill="#3b82f6" />
+                  <Bar dataKey="هزینه" fill="#ef4444" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Materials Table */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+          <div>
+            <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+              جزئیات مصرف مواد اولیه
+            </h4>
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-700">
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      تاریخ
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                      دسته‌بندی
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      ماده اولیه
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                      نام ماده
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      میزان مصرف
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                      کد ماده
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      هزینه (ریال)
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                      مقدار مصرف
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">
+                      هزینه
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {materialsData.map((material, index) => (
-                    <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {material.date}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {material.material}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {material.usage.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {material.cost.toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
+                  {Object.entries(report.byCategory).flatMap(([category, data]) =>
+                    data.materials.map((material) => (
+                      <tr key={`${category}-${material.id}`}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          {category}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          {material.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          {material.code}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          {material.quantity.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          {material.cost.toLocaleString()} ریال
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
-        </>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-gray-600 dark:text-gray-400">
-            {dateRange[0] && dateRange[1] 
-              ? 'داده‌ای برای نمایش وجود ندارد'
-              : 'لطفا بازه زمانی را انتخاب کنید'
-            }
-          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 } 

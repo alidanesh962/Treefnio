@@ -63,7 +63,7 @@ export default function ProductionModule() {
     setSidebarOpen(!isSidebarOpen);
   };
 
-  const handleProductSelected = (product: ExtendedProductDefinition) => { // Updated handler
+  const handleProductSelected = (product: ExtendedProductDefinition) => {
     const productDefinition: ProductDefinition = {
       id: product.id,
       name: product.name,
@@ -71,7 +71,8 @@ export default function ProductionModule() {
       saleDepartment: product.saleDepartment,
       productionSegment: product.productionSegment,
       createdAt: product.createdAt,
-      updatedAt: product.updatedAt
+      updatedAt: product.updatedAt,
+      isActive: product.isActive ?? true
     };
 
     setSelectedProduct(productDefinition);
